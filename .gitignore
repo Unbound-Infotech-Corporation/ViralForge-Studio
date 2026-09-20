@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+.env.*
+
+# App runtime
+*.log
+*.spec.bak
+/outputs/
+/cache/
+
+# IDE
+.idea/
+.vscode/
+*.user
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Packaging
+/release/
+/installer/Output/
+
+# Local models / media
+*.mp4
+*.wav
+*.mp3
+*.gguf
+*.safetensors
+*.ckpt
+!assets/music/.gitkeep

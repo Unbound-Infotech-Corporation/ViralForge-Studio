@@ -1,0 +1,76 @@
+{
+  "entries": [
+    {
+      "id": "warner_bros",
+      "studio": "Warner Bros. Pictures",
+      "media_types": ["movie", "show"],
+      "franchises": ["Dune", "Matrix", "Batman", "Harry Potter", "DC"],
+      "channel_ids": ["UCq-Fj5jwhLhHu_iKL_vid"],
+      "channel_names": ["Warner Bros. Pictures"]
+    },
+    {
+      "id": "universal_pictures",
+      "studio": "Universal Pictures",
+      "media_types": ["movie", "show"],
+      "franchises": ["Jurassic", "Fast and Furious", "Mummy", "Universal"],
+      "channel_ids": ["UCY2PXcDOPe8f2Z8GdExS9Hw"],
+      "channel_names": ["Universal Pictures"]
+    },
+    {
+      "id": "sony_pictures",
+      "studio": "Sony Pictures Entertainment",
+      "media_types": ["movie", "show"],
+      "franchises": ["Spider-Man", "Ghostbusters", "Sony Pictures"],
+      "channel_ids": ["UC5l23T7_X_3w8P0sO0N9-g"],
+      "channel_names": ["Sony Pictures Entertainment"]
+    },
+    {
+      "id": "marvel",
+      "studio": "Marvel Entertainment",
+      "media_types": ["movie", "show"],
+      "franchises": ["Marvel", "Avengers", "MCU"],
+      "channel_ids": ["UC32m-Ngihj3B82W6MncwwUw"],
+      "channel_names": ["Marvel Entertainment"]
+    },
+    {
+      "id": "disney",
+      "studio": "Walt Disney Studios",
+      "media_types": ["movie", "show"],
+      "franchises": ["Disney", "Star Wars", "Pixar", "Marvel Studios"],
+      "channel_ids": ["UC_wwT2vDWb0YH83Xgwm5m2g"],
+      "channel_names": ["Walt Disney Studios"]
+    },
+    {
+      "id": "playstation",
+      "studio": "PlayStation",
+      "media_types": ["game"],
+      "franchises": ["PlayStation", "God of War", "Horizon", "Spider-Man", "The Last of Us"],
+      "channel_ids": ["UCBCilwpbOib3zc_qD9w4bA"],
+      "channel_names": ["PlayStation"]
+    },
+    {
+      "id": "xbox",
+      "studio": "Xbox",
+      "media_types": ["game"],
+      "franchises": ["Xbox", "Halo", "Forza", "Starfield"],
+      "channel_ids": ["UCtU60G0ENAIdT31k9oy1f4Q"],
+      "channel_names": ["Xbox"]
+    },
+    {
+      "id": "nintendo",
+      "studio": "Nintendo",
+      "media_types": ["game"],
+      "franchises": ["Nintendo", "Zelda", "Mario", "Pokemon", "Metroid"],
+      "channel_ids": ["UCjvmb_A4ILT0W9QB2cXHEQ"],
+      "channel_names": ["Nintendo of America"]
+    },
+    {
+      "id": "netflix",
+      "studio": "Netflix",
+      "media_types": ["movie", "show"],
+      "franchises": ["Netflix", "Stranger Things", "Wednesday"],
+      "channel_ids": ["UCWOA1ZMd5ZRQ8Wv8yKk2qYg"],
+      "channel_names": ["Netflix"]
+    }
+  ]
+}

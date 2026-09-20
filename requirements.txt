@@ -1,0 +1,17 @@
+# Core — enough to open the app and render a Quick Explainer MP4 on CPU.
+PySide6>=6.7,<6.12
+httpx==0.28.1
+feedparser==6.0.11
+Pillow>=10.4,<12
+imageio-ffmpeg==0.5.1
+pyttsx3==2.98
+yt-dlp>=2025.1.12
+psutil==6.1.1
+platformdirs==4.3.6
+
+# Optional extras (install only if you want them):
+# faster-whisper==1.1.1
+# edge-tts==7.0.2
+# nvidia-ml-py==12.560.30
+# pyinstaller==6.11.1
+# pytest==8.3.4

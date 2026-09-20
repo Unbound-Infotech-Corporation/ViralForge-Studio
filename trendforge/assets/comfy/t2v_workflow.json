@@ -1,0 +1,19 @@
+{
+  "_comment": "Replace this with an exported ComfyUI API-format workflow. TrendForge injects each shot's visual_prompt into the first CLIPTextEncode node that is not a negative prompt.",
+  "prompt": {
+    "6": {
+      "inputs": {
+        "text": "PLACEHOLDER_PROMPT",
+        "clip": ["11", 0]
+      },
+      "class_type": "CLIPTextEncode"
+    },
+    "7": {
+      "inputs": {
+        "text": "blurry, low quality, watermark, text",
+        "clip": ["11", 0]
+      },
+      "class_type": "CLIPTextEncode"
+    }
+  }
+}

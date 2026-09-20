@@ -1,0 +1,2 @@
+include trendforge/assets/**
+recursive-include trendforge/assets *
