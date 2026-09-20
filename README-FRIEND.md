@@ -1,24 +1,22 @@
-# ViralForge Studio — Lite (friend test build)
+# ViralForge Studio — Lite portable (friend test)
 
-Thanks for testing! This is the **Lite** pack: run Studio and dry-run cinema
-(stitched shorts) without downloading huge GPU models.
+Thanks for testing. This is the **Lite** setup zip: dry-run / Ken Burns cinema without huge GPU models.
+
+## Download
+
+**Direct zip:** https://github.com/Unbound-Infotech-Corporation/ViralForge-Studio/releases/download/v0.2.0-lite/ViralForge-Lite-Portable.zip
+
+**Release page:** https://github.com/Unbound-Infotech-Corporation/ViralForge-Studio/releases/tag/v0.2.0-lite
 
 ## Requirements
-- Windows 10/11
-- Python 3.11+ from https://www.python.org/downloads/ (check "Add Python to PATH")
-- About 2 GB free disk for Lite
+- Windows 10 or 11 (64-bit)
+- **Python is bundled** — you do not install it
+- GPU not required for Lite dry-run cinema
 
 ## Install
-1. Unzip this folder anywhere
-2. Double-click **Start-ViralForge-Lite.bat**
-3. First run creates a venv and installs deps (a few minutes)
-4. Studio opens — use Produce / Generate for a short dry-run stitch
+1. Unzip `ViralForge-Lite-Portable.zip`
+2. Double-click **Start.bat** (or ViralForgeSetup.bat)
+3. Setup opens with **Lite** selected. No Wan / LTX weights are in the zip.
+4. Upgrade later in the same window: sidebar **Regular** or **Maximum**.
 
-## Packs (later in Setup)
-- **Lite** (this zip): dry-run cinema + local voice/captions path
-- **Regular**: Wan 2.2 TI2V-5B + LTX-2.5 (~70GB) — needs GPU + HF access for gated LTX
-- **Maximum**: adds Wan A14B heroes — huge disk
-
-## Notes
-- No Pinokio / Maestro app required
-- Feedback welcome to whoever sent you this link
+Full notes are inside the zip as `README.txt`.
