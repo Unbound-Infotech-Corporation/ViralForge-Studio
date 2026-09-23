@@ -1,0 +1,12 @@
+# GPU cinema extras for trendforge.cinema DiffusersWanBackend.
+# Wan 2.2 TI2V-5B needs Diffusers main (WanPipeline, WanImageToVideoPipeline, AutoencoderKLWan).
+# The PyPI diffusers release may lag that API. Install torch for your CUDA build first:
+#   https://pytorch.org/get-started/locally/
+torch>=2.4
+diffusers @ git+https://github.com/huggingface/diffusers
+transformers>=4.49
+accelerate>=1.2
+sentencepiece>=0.2
+protobuf>=4.25
+ftfy>=6.1
+huggingface_hub>=0.26

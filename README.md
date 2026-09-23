@@ -2,7 +2,7 @@
 
 Local Windows desktop app that turns **currently trending topics** into a **YouTube channel**: Shorts, standard and long videos, and multi-episode narrated docuseries. Native PySide6 UI. No paid API is required for core features.
 
-Cinematic multi-clip generation prefers **[Maestro](https://github.com/Blizaine/Maestro)** (the Pinokio app by Blizaine) when it is installed and running. If Maestro is not found, TrendForge falls back to ComfyUI (if you already run it) or **Quick Explainer** — a CPU path that still produces a real H.264 MP4 with voiceover, captions, music, intro/outro, and a YouTube pack (titles, description, pinned comment, community post).
+Cinematic multi-clip generation can run **inside this app** with ViralForge Cinema (Diffusers Wan 2.2 TI2V-5B + stitch). That path does not use Maestro or Pinokio. Maestro remains an optional higher-touch route when it is already installed; otherwise TrendForge uses ComfyUI (if you already run it) or **Quick Explainer** — a CPU path that still produces a real H.264 MP4 with voiceover, captions, music, intro/outro, and a YouTube pack (titles, description, pinned comment, community post).
 
 ## What you get
 
@@ -19,9 +19,9 @@ Cinematic multi-clip generation prefers **[Maestro](https://github.com/Blizaine/
 | --- | --- | --- |
 | Windows 10/11 x64 | Yes | |
 | Python **3.11 or 3.12** (3.10–3.14 also work) | Yes (source install) | 3.12 is the sweet spot |
-| NVIDIA GPU | No for Quick Explainer | **6 GB+ VRAM** recommended for Maestro |
+| NVIDIA GPU | No for Quick Explainer | Native Wan 2.2 TI2V wants about **24 GB** with CPU offload |
 | ffmpeg | Strongly recommended | `imageio-ffmpeg` is bundled as fallback |
-| [Pinokio](https://pinokio.computer) + [Maestro](https://github.com/Blizaine/Maestro) | No | Best quality path; Start it before the wizard can pull video weights |
+| [Pinokio](https://pinokio.computer) + [Maestro](https://github.com/Blizaine/Maestro) | No | Optional. Native cinema does not use them |
 | [Ollama](https://ollama.com/download) | No | Smarter scripts. Install + keep running, then the wizard pulls `qwen2.5:7b` / `14b` |
 | ComfyUI | No | Optional if you already have a T2V workflow |
 
@@ -77,6 +77,51 @@ Keep Ollama running, then let TrendForge pull `qwen2.5:7b` (and `14b` on high-RA
 ### Optional: ComfyUI
 
 Run ComfyUI on `http://127.0.0.1:8188`. Export an API workflow to `trendforge/assets/comfy/t2v_workflow.json` (see the README in that folder).
+
+## Native cinema GPU (Wan 2.2 TI2V, no Maestro)
+
+ViralForge Cinema renders shots with **Diffusers** `WanPipeline` (text) or `WanImageToVideoPipeline` (when a keyframe image is passed). One Wan generation is about **5–8 seconds** (121 frames at 24 fps is ~5s; 193 frames is ~8s) at **1280×704**. A longer episode is those clips stitched. Nothing here starts Maestro or Pinokio. The model card's single-GPU recipe is about 24 GB with CPU offload, which is the default (`--no-offload` keeps the pipeline on the GPU).
+
+The loader reads a **Diffusers snapshot** (`model_index.json`), not the official Wan trainer folder. If you already have `F:\TrendForge\models\cinema\wan2.2-ti2v-5b` (WanModel shards + `Wan2.2_VAE.pth` + T5), leave it — download the Diffusers weights beside it.
+
+Hugging Face id: **`Wan-AI/Wan2.2-TI2V-5B-Diffusers`**
+
+```powershell
+pip install -r requirements-cinema-gpu.txt
+pip install -U "huggingface_hub[cli]"
+huggingface-cli download Wan-AI/Wan2.2-TI2V-5B-Diffusers --local-dir "F:\TrendForge\models\cinema\wan2.2-ti2v-5b-diffusers"
+```
+
+`python -m trendforge.cinema.download` prints this plan. Add `--fetch` to download that snapshot into `cinema_models_dir` (default `F:\TrendForge\models\cinema`).
+
+In `%LOCALAPPDATA%\TrendForge\TrendForge Studio\settings.json` (or `F:\TrendForge\settings.json` when that drive is the data root):
+
+```json
+"cinema_dry_run": false,
+"cinema_models_dir": "F:\\TrendForge\\models\\cinema"
+```
+
+`cinema_dry_run: true` (the default) keeps the ffmpeg motion-card path so the app still renders with no GPU. When it is **false**, `CinemaDirector` selects `DiffusersWanBackend` only if CUDA, torch, diffusers, and `wan2.2-ti2v-5b-diffusers/model_index.json` are all present. Otherwise it falls back to the dry-run backend and records why.
+
+Render a five-act Robot Boxing episode (~3 minutes: five 36s acts, each six ~6s clips stitched):
+
+```powershell
+python -m trendforge.cinema.render_episode --robot-boxing --gpu --output final.mp4
+```
+
+Or pass a topic and exactly five shot prompts (each prompt is one ~6s clip unless you add `--expand-acts`):
+
+```powershell
+python -m trendforge.cinema.render_episode --gpu --topic "Robot Boxing" `
+  --prompt "chrome robots walk into a neon arena" `
+  --prompt "opening bell, first exchange of punches" `
+  --prompt "mid-round combinations and sparks" `
+  --prompt "a heavy cross, one robot drops to a knee" `
+  --prompt "the standing robot raises a fist" `
+  --output final.mp4
+```
+
+`--dry-run` forces the ffmpeg cards (useful without a GPU). `--require-gpu` exits with status 3 instead of falling back.
 
 ## First video in minutes (no GPU models)
 

@@ -27,6 +27,14 @@ whisper = ["faster-whisper>=1.0,<2"]
 cloud-tts = ["edge-tts>=6.1,<8"]
 nvidia = ["nvidia-ml-py>=12.0"]
 dev = ["pytest>=8.0", "pyinstaller>=6.10"]
+# Torch + diffusers-from-git are listed in requirements-cinema-gpu.txt (WanPipeline lives on diffusers main).
+cinema-gpu = [
+  "accelerate>=1.2",
+  "transformers>=4.49",
+  "sentencepiece>=0.2",
+  "ftfy>=6.1",
+  "huggingface_hub>=0.26",
+]
 
 [project.scripts]
 trendforge = "trendforge.app:main"

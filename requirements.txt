@@ -9,6 +9,9 @@ yt-dlp>=2025.1.12
 psutil==6.1.1
 platformdirs==4.3.6
 
+# Optional GPU cinema (Wan 2.2 TI2V via Diffusers — see requirements-cinema-gpu.txt):
+# pip install -r requirements-cinema-gpu.txt
+
 # Optional extras (install only if you want them):
 # faster-whisper==1.1.1
 # edge-tts==7.0.2

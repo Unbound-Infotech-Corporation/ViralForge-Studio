@@ -5,8 +5,8 @@ from pathlib import Path
 
 from trendforge.cinema.config import CinemaConfig
 from trendforge.cinema.ltx_backend import DryRunLtxBackend, LtxBackend
-from trendforge.cinema.shots import CinemaEpisode, CinemaShot
-from trendforge.cinema.wan_backend import DryRunWanBackend, WanBackend
+from trendforge.cinema.shots import CinemaEpisode, CinemaShot, keyframe_for_shot
+from trendforge.cinema.wan_backend import DiffusersWanBackend, WanBackend, resolve_wan_backend
 from trendforge.services.stitcher import concat_cut, concat_xfade
 
 
@@ -16,6 +16,8 @@ class CinemaResult:
     clip_paths: list[Path] = field(default_factory=list)
     dry_run: bool = True
     backend: str = "native_cinema"
+    wan_impl: str = "dry_run"
+    fallback_reason: str = ""
 
 
 class CinemaDirector:
@@ -30,8 +32,9 @@ class CinemaDirector:
     ) -> None:
         self.config = config
         self.ffmpeg = ffmpeg
+        self.fallback_reason = ""
         if wan is None:
-            wan = DryRunWanBackend(ffmpeg)
+            wan, self.fallback_reason = resolve_wan_backend(config, ffmpeg)
         if ltx is None:
             ltx = DryRunLtxBackend(ffmpeg)
         self.wan = wan
@@ -43,7 +46,7 @@ class CinemaDirector:
         prev: Path | None = None
         for shot in episode.shots:
             dest = work_dir / f"shot_{shot.index:03d}.mp4"
-            clip = self.wan.generate(shot, None, dest)
+            clip = self.wan.generate(shot, keyframe_for_shot(shot), dest)
             shot.clip_path = str(clip)
             if (
                 self.config.bridge_with_ltx
@@ -69,11 +72,14 @@ class CinemaDirector:
         else:
             concat_cut(clips, final_path, self.ffmpeg)
 
+        gpu = isinstance(self.wan, DiffusersWanBackend)
         return CinemaResult(
             final_path=final_path,
             clip_paths=clips,
-            dry_run=self.config.dry_run,
+            dry_run=not gpu,
             backend="native_cinema",
+            wan_impl=getattr(self.wan, "impl_id", "custom"),
+            fallback_reason=self.fallback_reason,
         )
 
 
@@ -102,6 +108,7 @@ def episode_from_script_shots(
                 ),
                 duration_sec=float(s.get("duration_sec") or s.get("duration") or 4.0),
                 kind=str(s.get("kind") or "hero"),
+                keyframe_path=str(s.get("keyframe_path") or s.get("keyframe") or ""),
             )
         )
     if not shots:
