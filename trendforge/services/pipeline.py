@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
@@ -9,10 +10,12 @@ from trendforge.cinema.config import CinemaConfig
 from trendforge.cinema.director import CinemaDirector, episode_from_script_shots
 from trendforge.domain.enums import (
     BackendKind,
+    CaptionStyle,
     ClipStatus,
     ContentFormat,
     PipelineStage,
     ShotSegmentKind,
+    TransitionStyle,
     VoiceEngine,
 )
 from trendforge.domain.models import GenerationRequest, PipelineProgress, Project, Shot
@@ -21,7 +24,7 @@ from trendforge.services.captions import write_ass, write_srt
 from trendforge.services.cards import canvas_size, render_card
 from trendforge.services.comfyui_client import ComfyUIClient
 from trendforge.services.debug_trace import host_snapshot, log as dbg, validate_video
-from trendforge.services.ffmpeg_tools import find_ffmpeg
+from trendforge.services.ffmpeg_tools import find_ffmpeg, require_audio_stream
 from trendforge.services.maestro_client import (
     MaestroClient,
     MaestroError,
@@ -37,9 +40,13 @@ from trendforge.services.script_engine import assign_source_timestamps, generate
 from trendforge.services.trailer_allowlist import verify_trailer_url
 from trendforge.services.stitcher import (
     assemble,
+    deliver_cinema_audio,
     extract_thumbnail,
     ken_burns_clip,
+    lay_cinema_soundtrack,
+    mux_soft_captions,
     probe_duration,
+    probe_video_size,
     youtube_encode,
 )
 from trendforge.services.tts_engine import synthesize
@@ -736,6 +743,42 @@ class ProductionPipeline:
         except Exception as exc:
             log.warning("YouTube thumb card failed: %s", exc)
 
+    def _cinema_narration_wav(
+        self,
+        project: Project,
+        shot: Shot,
+        index: int,
+        audio_dir: Path,
+    ) -> Path | None:
+        text = " ".join((shot.narration or "").split())
+        if not text:
+            return None
+        piper = ""
+        if project.request.voice is VoiceEngine.PIPER:
+            from trendforge.services.installer import piper_model_path
+
+            found = piper_model_path(self.dirs, project.request.piper_voice)
+            piper = str(found) if found else ""
+        dest = audio_dir / f"vo_{index:03d}.wav"
+        try:
+            audio = synthesize(
+                text,
+                dest,
+                project.request.voice,
+                piper_model=piper,
+                allow_cloud=self.settings.paid_fallbacks_enabled,
+                allow_fallback=False,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Voiceover failed for shot {index + 1}: {exc}") from exc
+        path = Path(audio) if audio else None
+        if path is None or not path.exists() or path.stat().st_size < 100:
+            raise RuntimeError(
+                f"Voiceover failed for shot {index + 1}: TTS did not write an audio file."
+            )
+        shot.audio_path = str(path)
+        return path
+
     def _run_native_cinema(
         self,
         project: Project,
@@ -751,6 +794,30 @@ class ProductionPipeline:
         work.mkdir(parents=True, exist_ok=True)
         out_dir.mkdir(parents=True, exist_ok=True)
         final = out_dir / "final.mp4"
+        yt = out_dir / "youtube.mp4"
+        for stale in (final, yt):
+            stale.unlink(missing_ok=True)
+
+        req = project.request
+        shots = project.script.shots
+        if req.enable_voiceover and not any((s.narration or "").strip() for s in shots):
+            raise RuntimeError(
+                "Voiceover is enabled but the script has no narration. Refusing a silent export."
+            )
+        music = None
+        if req.enable_music:
+            music = ensure_bed_track(self.dirs)
+            if not music.exists() or music.stat().st_size < 100:
+                raise RuntimeError("Music is enabled but the music bed was not created.")
+
+        audio_dir = folder / "audio"
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        voice_by_index: dict[int, Path] = {}
+        if req.enable_voiceover:
+            for i, shot in enumerate(shots):
+                wav = self._cinema_narration_wav(project, shot, i, audio_dir)
+                if wav is not None:
+                    voice_by_index[i] = wav
 
         shots_payload = [
             {
@@ -760,10 +827,10 @@ class ProductionPipeline:
                 "duration_sec": float(s.duration_sec or 4.0),
                 "kind": "hero",
             }
-            for s in project.script.shots
+            for s in shots
         ]
-        title = project.script.title or project.request.topic or "Episode"
-        topic = project.request.topic or title
+        title = project.script.title or req.topic or "Episode"
+        topic = req.topic or title
         cfg = CinemaConfig.from_settings(self.settings)
         self._emit(
             on_progress,
@@ -776,28 +843,133 @@ class ProductionPipeline:
         self._check(cancelled)
         episode = episode_from_script_shots(str(title), str(topic), shots_payload)
         director = CinemaDirector(cfg, ffmpeg=ffmpeg)
-        result = director.run(episode, work, final)
+        picture = work / "picture.mp4"
+        result = director.run(episode, work, picture)
 
         heroes = [p for p in result.clip_paths if not p.name.startswith("bridge_")]
-        for shot, clip in zip(project.script.shots, heroes):
-            shot.clip_path = str(clip)
-            shot.status = ClipStatus.DONE
+        if len(heroes) != len(shots):
+            raise RuntimeError(
+                f"Cinema rendered {len(heroes)} shot clips for {len(shots)} script shots. "
+                "Refusing to export."
+            )
+
+        ordered_clips: list[Path] = []
+        ordered_wavs: list[Path | None] = []
+        timeline: list[tuple[str, Shot | None]] = []
+        hero_i = 0
+        for clip in result.clip_paths:
+            if clip.name.startswith("bridge_"):
+                ordered_clips.append(clip)
+                ordered_wavs.append(None)
+                timeline.append(("bridge", None))
+                continue
+            ordered_clips.append(clip)
+            ordered_wavs.append(voice_by_index.get(hero_i))
+            timeline.append(("hero", shots[hero_i]))
+            hero_i += 1
 
         self._emit(
             on_progress,
             stage=PipelineStage.STITCH,
-            percent=85,
-            message=f"Stitched {len(result.clip_paths)} cinema clips",
+            percent=82,
+            message="Mixing voiceover, music, and captions…",
             cancellable=False,
         )
+        laid = lay_cinema_soundtrack(
+            ordered_clips,
+            ordered_wavs,
+            work / "vo_clips",
+            ffmpeg,
+            require_voice=req.enable_voiceover,
+        )
+        xfade = 0.4 if req.transition is TransitionStyle.CROSSFADE and len(laid) > 1 else 0.0
+        caption_shots: list[Shot] = []
+        for i, ((kind, shot), clip) in enumerate(zip(timeline, laid, strict=True)):
+            dur = round(probe_duration(clip, ffmpeg), 2)
+            if kind == "hero" and shot is not None:
+                shot.clip_path = str(clip)
+                shot.duration_sec = dur
+                shot.status = ClipStatus.DONE
+                base = shot
+            else:
+                base = Shot(
+                    index=-1,
+                    title="",
+                    narration="",
+                    visual_prompt="",
+                    duration_sec=dur,
+                )
+            shown = round(max(0.3, dur - xfade), 2) if xfade and i < len(laid) - 1 else dur
+            caption_shots.append(replace(base, duration_sec=shown))
+
+        ass = None
+        srt = None
+        cap_style = CaptionStyle.NONE
+        if req.enable_captions:
+            srt = write_srt(caption_shots, folder / "captions" / "captions.srt")
+            if req.captions is not CaptionStyle.NONE:
+                width, height = probe_video_size(laid[0], ffmpeg)
+                ass = write_ass(
+                    caption_shots,
+                    folder / "captions" / "captions.ass",
+                    width,
+                    height,
+                    req.captions,
+                )
+                if ass is None or not ass.exists():
+                    raise RuntimeError("Captions are enabled but the caption file was not written.")
+                cap_style = req.captions
+
+        self._check(cancelled)
+        staged = work / "deliver.mp4"
+        deliver_cinema_audio(
+            laid,
+            staged,
+            ffmpeg,
+            transition=req.transition,
+            music=music,
+            music_volume=req.music_volume,
+            captions_file=ass,
+            caption_style=cap_style,
+            codec=req.codec or "h264",
+            require_voice=req.enable_voiceover,
+            require_music=req.enable_music,
+        )
+        staged.replace(final)
+        if req.enable_captions and req.captions is CaptionStyle.NONE:
+            if srt is None or not srt.exists():
+                final.unlink(missing_ok=True)
+                raise RuntimeError("Captions are enabled but the subtitle file was not written.")
+            try:
+                mux_soft_captions(final, srt, final, ffmpeg)
+            except Exception as exc:
+                final.unlink(missing_ok=True)
+                raise RuntimeError(f"Caption mux failed: {exc}") from exc
+            if req.enable_voiceover or req.enable_music:
+                try:
+                    require_audio_stream(final, ffmpeg, "Cinema final")
+                except Exception:
+                    final.unlink(missing_ok=True)
+                    raise
+
         try:
-            yt = out_dir / "youtube.mp4"
-            codec = getattr(project.request, "codec", "h264") or "h264"
-            youtube_encode(result.final_path, yt, ffmpeg, codec)
-            project.output_path = str(yt if yt.exists() else result.final_path)
+            youtube_encode(final, yt, ffmpeg, req.codec or "h264")
+            if req.enable_captions and req.captions is CaptionStyle.NONE and srt is not None:
+                mux_soft_captions(yt, srt, yt, ffmpeg)
+            if req.enable_voiceover or req.enable_music:
+                require_audio_stream(yt, ffmpeg, "YouTube export")
         except Exception as exc:
-            project.output_path = str(result.final_path)
-            log.warning("native cinema youtube encode warn: %s", exc)
+            yt.unlink(missing_ok=True)
+            raise RuntimeError(f"YouTube export failed: {exc}") from exc
+
+        project.output_path = str(yt if yt.exists() else final)
+        self._emit(
+            on_progress,
+            stage=PipelineStage.STITCH,
+            percent=90,
+            message=f"Stitched {len(result.clip_paths)} cinema clips with audio",
+            cancellable=False,
+        )
 
 
     def _run_maestro_director(

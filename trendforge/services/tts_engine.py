@@ -126,6 +126,7 @@ def synthesize(
     engine: VoiceEngine,
     piper_model: str = "",
     allow_cloud: bool = False,
+    allow_fallback: bool = True,
 ) -> Path | None:
     text = " ".join((text or "").split())
     if not text or engine is VoiceEngine.NONE:
@@ -144,11 +145,17 @@ def synthesize(
             except Exception:
                 piper_model = ""
         if not piper_model:
+            if not allow_fallback:
+                raise RuntimeError(
+                    "Piper voice model was not found. Install the Piper voice and run Produce again."
+                )
             log.warning("Piper voice missing; falling back to Windows SAPI")
             return synthesize_sapi(text, dest)
         try:
             return synthesize_piper(text, dest, piper_model)
         except Exception as exc:
+            if not allow_fallback:
+                raise RuntimeError(f"Piper TTS failed: {exc}") from exc
             log.warning("Piper failed (%s); using Windows SAPI", exc)
             return synthesize_sapi(text, dest)
     if engine is VoiceEngine.EDGE_TTS:

@@ -67,3 +67,48 @@ def require_ok(proc: subprocess.CompletedProcess[str], context: str) -> None:
         return
     err = (proc.stderr or proc.stdout or "").strip()[-4000:]
     raise RuntimeError(f"{context} failed (code {proc.returncode}):\n{err}")
+
+
+def has_audio_stream(path: Path, ffmpeg: str) -> bool:
+    """True when the file contains at least one audio stream."""
+    if not path.exists():
+        return False
+    probe = find_ffprobe(ffmpeg)
+    if probe:
+        proc = subprocess.run(
+            [
+                probe,
+                "-v",
+                "error",
+                "-select_streams",
+                "a",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "csv=p=0",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            creationflags=_no_window(),
+        )
+        if proc.returncode == 0:
+            return "audio" in (proc.stdout or "")
+    proc = subprocess.run(
+        [ffmpeg, "-i", str(path)],
+        capture_output=True,
+        text=True,
+        creationflags=_no_window(),
+    )
+    return "Audio:" in (proc.stderr or "")
+
+
+def require_audio_stream(path: Path, ffmpeg: str, context: str) -> None:
+    """Fail the job when a deliverable that must be heard has no audio stream."""
+    if not path.exists() or path.stat().st_size < 100:
+        raise RuntimeError(f"{context} failed: {path.name} was not written.")
+    if not has_audio_stream(path, ffmpeg):
+        raise RuntimeError(
+            f"{context} failed: {path.name} has no audio stream. "
+            "Voiceover or music was required for this export."
+        )
