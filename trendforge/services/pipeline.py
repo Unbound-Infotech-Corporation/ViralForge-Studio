@@ -785,7 +785,7 @@ class ProductionPipeline:
         on_progress: ProgressCb | None,
         cancelled: Callable[[], bool],
     ) -> None:
-        """Wan 2.2 I2V + LTX-2.5 bridges + stitch — no Maestro app."""
+        """Wan 2.2 TI2V (Diffusers when GPU weights exist) + LTX bridges + stitch — no Maestro app."""
         assert project.script
         ffmpeg = find_ffmpeg(self.settings.ffmpeg_path)
         folder = Path(project.folder)
