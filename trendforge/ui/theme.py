@@ -60,6 +60,23 @@ QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox {
     selection-background-color: #E8A54B;
     selection-color: #1A1208;
 }
+QFrame#choiceRow {
+    background: #12141A;
+    border: 1px solid #3A4158;
+    border-radius: 8px;
+}
+QFrame#choiceRow QComboBox {
+    border: none;
+    background: transparent;
+    padding: 4px 6px;
+}
+QLabel#choiceTitle { color: #8B93A7; font-size: 12px; font-weight: 700; }
+QLabel#choiceMark { background: transparent; border: none; }
+QFrame#hintBar {
+    background: #2A2418;
+    border-bottom: 1px solid #E8A54B;
+}
+QPushButton#consoleToggle { padding: 2px 10px; border-radius: 6px; }
 QComboBox QAbstractItemView {
     background: #1A1D27;
     color: #F2F4F8;
@@ -114,6 +131,10 @@ QPushButton#nav:checked, QPushButton#nav:hover { background: #FFFBF4; color: #B0
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox {
     background: #FFFBF4; border: 1px solid #E4D9C5; border-radius: 10px; padding: 8px 10px;
 }
+QFrame#choiceRow { background: #FFFBF4; border: 1px solid #C9BBA4; border-radius: 8px; }
+QFrame#choiceRow QComboBox { border: none; background: transparent; }
+QLabel#choiceTitle { color: #5C574E; font-size: 12px; font-weight: 700; }
+QFrame#hintBar { background: #F3E6CC; border-bottom: 1px solid #B06A12; }
 QProgressBar { background: #EFE7D8; border: 1px solid #E4D9C5; border-radius: 8px; text-align: center; }
 QProgressBar::chunk { background: #E8A54B; border-radius: 8px; }
 QStatusBar { background: #EFE7D8; color: #5C574E; }

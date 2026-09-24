@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -13,6 +15,57 @@ from PySide6.QtWidgets import (
 
 from trendforge.domain.enums import PipelineStage
 from trendforge.domain.models import TrendItem
+
+
+def mark_icon(letters: str) -> QIcon:
+    """Small painted badge so combo rows keep a logo even when icon files are missing."""
+    text = (letters or "•")[:3]
+    pix = QPixmap(28, 28)
+    pix.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pix)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QColor("#1A1D27"))
+    painter.setPen(QColor("#3A4158"))
+    painter.drawRoundedRect(1, 1, 26, 26, 6, 6)
+    painter.setPen(QColor("#E8A54B"))
+    font = QFont("Segoe UI")
+    font.setBold(True)
+    font.setPixelSize(9 if len(text) > 2 else 11)
+    painter.setFont(font)
+    painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, text)
+    painter.end()
+    return QIcon(pix)
+
+
+class ChoiceRow(QFrame):
+    """Format / Model / Style row: logo, label, and a thin frame around the combo."""
+
+    def __init__(self, title: str, combo: QComboBox, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("choiceRow")
+        self.combo = combo
+        row = QHBoxLayout(self)
+        row.setContentsMargins(6, 4, 6, 4)
+        row.setSpacing(8)
+        self.mark = QLabel()
+        self.mark.setObjectName("choiceMark")
+        self.mark.setFixedSize(28, 28)
+        self.mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name = QLabel(title)
+        name.setObjectName("choiceTitle")
+        name.setFixedWidth(64)
+        row.addWidget(self.mark)
+        row.addWidget(name)
+        row.addWidget(combo, 1)
+        combo.currentIndexChanged.connect(lambda _i: self.sync_mark())
+        self.sync_mark()
+
+    def sync_mark(self) -> None:
+        icon = self.combo.itemIcon(self.combo.currentIndex())
+        if icon.isNull():
+            self.mark.setPixmap(mark_icon("•").pixmap(28, 28))
+            return
+        self.mark.setPixmap(icon.pixmap(28, 28))
 
 
 class Card(QFrame):

@@ -20,9 +20,9 @@ from trendforge.bootstrap import AppDirs
 from trendforge.domain.models import TrendItem
 from trendforge.logging_setup import read_log_tail
 from trendforge.services.hardware import detect_hardware
-from trendforge.services.maestro_detect import detect_maestro
 from trendforge.services.projects import ProjectStore
 from trendforge.settings import AppSettings
+from trendforge.ui.job_console import JobConsole
 from trendforge.ui.pages.channel import ChannelPage
 from trendforge.ui.pages.create import CreatePage
 from trendforge.ui.pages.discover import DiscoverPage
@@ -54,9 +54,15 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1024, 680)
 
         root = QWidget()
-        layout = QHBoxLayout(root)
+        outer = QVBoxLayout(root)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self.hint_bar = self._build_hint_bar()
+        outer.addWidget(self.hint_bar)
+        layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        outer.addLayout(layout, 1)
 
         nav = QFrame()
         nav.setObjectName("nav")
@@ -95,7 +101,6 @@ class MainWindow(QMainWindow):
         ):
             self.stack.addWidget(page)
 
-        # Adobe-style sections, Maestro-style focus path
         self.nav_btns: list[QPushButton] = []
         sections = [
             ("IDEATE", (("Discover", PAGE_DISCOVER),)),
@@ -131,16 +136,25 @@ class MainWindow(QMainWindow):
         self.create.project_ready.connect(lambda _: self.gallery.reload())
         self.channel.saved.connect(self.create.refresh_dropdowns)
         self.models.catalogs_updated.connect(self.create.refresh_dropdowns)
+        self.create.produce_started.connect(self._on_produce_started)
+        self.create.job_event.connect(self._on_job_event)
+
+        self.console = JobConsole(settings, self)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.console)
+        self.console.setVisible(False)
+        self.console.visibilityChanged.connect(self._sync_console_checks)
 
         self._build_menu()
+        self._build_status_console()
         hw = detect_hardware()
-        maestro = detect_maestro(settings.maestro_url, settings.pinokio_path)
-        cinema = "ViralForge Cinema" if getattr(settings, "prefer_native_cinema", True) else "Maestro path"
-        mae = "Maestro up" if maestro.running_url else "Maestro off"
         self.statusBar().showMessage(
-            f"{hw.gpu_name} · {hw.vram_total_gb} GB · Engine: {cinema} · {mae} · {app_dirs.root}"
+            f"{hw.gpu_name} · {hw.vram_total_gb} GB · ViralForge Cinema · Job Console: Ctrl+` · {app_dirs.root}"
         )
         self._goto(PAGE_CREATE)
+        if not settings.console_hint_shown:
+            self.hint_bar.setVisible(True)
+        else:
+            self.hint_bar.setVisible(False)
 
     def _goto(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
@@ -165,6 +179,60 @@ class MainWindow(QMainWindow):
         self.create.apply_trend(item)
         self._goto(PAGE_CREATE)
 
+    def _build_hint_bar(self) -> QFrame:
+        bar = QFrame()
+        bar.setObjectName("hintBar")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(12, 8, 12, 8)
+        text = QLabel(
+            "Job Console tracks Produce. Open it from View → Job Console, "
+            "the Console button on the status bar, or Ctrl+`."
+        )
+        text.setWordWrap(True)
+        dismiss = QPushButton("Got it")
+        dismiss.clicked.connect(self._dismiss_console_hint)
+        row.addWidget(text, 1)
+        row.addWidget(dismiss)
+        return bar
+
+    def _dismiss_console_hint(self) -> None:
+        self.hint_bar.setVisible(False)
+        self.settings.console_hint_shown = True
+        try:
+            self.settings.save()
+        except Exception:
+            pass
+
+    def _build_status_console(self) -> None:
+        self.console_btn = QPushButton("Console")
+        self.console_btn.setObjectName("consoleToggle")
+        self.console_btn.setCheckable(True)
+        self.console_btn.setToolTip("Job Console (Ctrl+`)")
+        self.console_btn.toggled.connect(self._set_console_visible)
+        self.statusBar().addPermanentWidget(self.console_btn)
+
+    def _set_console_visible(self, visible: bool) -> None:
+        self.console.setVisible(visible)
+        self._sync_console_checks(visible)
+
+    def _sync_console_checks(self, visible: bool) -> None:
+        if hasattr(self, "console_action"):
+            self.console_action.blockSignals(True)
+            self.console_action.setChecked(visible)
+            self.console_action.blockSignals(False)
+        if hasattr(self, "console_btn"):
+            self.console_btn.blockSignals(True)
+            self.console_btn.setChecked(visible)
+            self.console_btn.blockSignals(False)
+
+    def _on_produce_started(self) -> None:
+        if self.settings.show_console_on_produce:
+            self._set_console_visible(True)
+            self.console.raise_()
+
+    def _on_job_event(self, text: str) -> None:
+        self.console.append_line(text)
+
     def _build_menu(self) -> None:
         bar = self.menuBar()
         file_menu = bar.addMenu("&File")
@@ -177,6 +245,14 @@ class MainWindow(QMainWindow):
         script_ai = QAction("Script AI", self)
         script_ai.triggered.connect(self._open_script_ai_settings)
         settings_menu.addAction(script_ai)
+
+        view_menu = bar.addMenu("&View")
+        self.console_action = QAction("Job Console", self)
+        self.console_action.setCheckable(True)
+        self.console_action.setShortcut(QKeySequence("Ctrl+`"))
+        self.console_action.setStatusTip("Show the Job Console — View menu, status-bar Console, or Ctrl+`")
+        self.console_action.toggled.connect(self._set_console_visible)
+        view_menu.addAction(self.console_action)
 
         help_menu = bar.addMenu("&Help")
         gs = QAction("Getting Started", self)
@@ -215,7 +291,9 @@ class MainWindow(QMainWindow):
             f"{__app_name__} {__version__}\n\n"
             "Local trending-topic video studio.\n"
             "Shorts, long videos, and narrated docuseries.\n"
-            "Primary engine: ViralForge Cinema (Wan 2.2 + LTX-2.5 + stitch).\n"
-            "Maestro remains optional. Pinokio not required.\n"
+            "Primary engine: ViralForge Cinema (Wan 2.2 and CogVideoX).\n"
+            "Job Console: View → Job Console, the status-bar Console button, or Ctrl+`.\n"
+            "Script Lab is under Produce. Settings → Script AI stores a bring-your-own key "
+            "(or local Ollama). A chat subscription is not an API key.\n"
             "No paid APIs required for core features.",
         )
