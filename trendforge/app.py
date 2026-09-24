@@ -12,6 +12,10 @@ def _prepare_environment() -> None:
     os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
     # Avoid Qt logging noise in packaged builds
     os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts.warning=false")
+    # Script Lab does not add flags that ignore certificate errors.
+    from trendforge.services.script_lab_browser import apply_chromium_environment
+
+    apply_chromium_environment()
 
 
 def main(argv: list[str] | None = None) -> int:

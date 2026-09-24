@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from trendforge.bootstrap import AppDirs
+from trendforge.services.script_lab_browser import normalize_browser_preference
 from trendforge.domain.catalog import is_hidden_model
 from trendforge.domain.enums import (
     AspectRatio,
@@ -77,6 +78,8 @@ class AppSettings:
     script_ai_api_key: str = field(default="", repr=False)
     script_ai_base_url: str = ""
     script_ai_model: str = ""
+    # "default" uses the OS browser. "edge" and "chrome" launch that browser when it is installed.
+    script_lab_system_browser: str = "default"
     show_console_on_produce: bool = True
     console_hint_shown: bool = False
 
@@ -141,6 +144,9 @@ class AppSettings:
             data["script_ai_base_url"] = ""
         if data.get("script_ai_model") is None:
             data["script_ai_model"] = ""
+        data["script_lab_system_browser"] = normalize_browser_preference(
+            data.get("script_lab_system_browser", "default")
+        )
         if is_hidden_model(str(data.get("last_model_id") or "")):
             data["last_model_id"] = "auto"
         if "installed_items" in data and not isinstance(data["installed_items"], list):
