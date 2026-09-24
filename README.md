@@ -84,6 +84,8 @@ Put checkpoints in the cinema models folder (default `F:\TrendForge\models\cinem
 
 Create lists **CogVideoX** directly beside the Wan rows. Legacy engines stay off that list. If the weights are missing, Generate stops with **Export refused** and does not write a card or silent `final.mp4`.
 
+Native cinema prompts are locked to each shot's beat and voiceover (must depict / must not depict). A headline with no beat or VO is refused instead of generic B-roll.
+
 ### Optional: Ollama
 
 ```powershell

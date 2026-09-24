@@ -52,6 +52,7 @@ TROUBLESHOOT = """
 <h1>Troubleshooting</h1>
 <ul>
 <li><b>Export refused / title cards</b> — cinematic models will not publish a card or silent final. Add weights under the cinema models folder, or pick Quick Explainer.</li>
+<li><b>Headline-only cinema prompt</b> — each shot is locked to its beat and voiceover (must depict / must not depict). A headline with no beat or VO is refused instead of generic B-roll.</li>
 <li><b>CogVideoX or Wan missing</b> — copy the checkpoint into <code>cinema/cogvideox</code> or <code>cinema/wan2.2-ti2v-5b</code>. The path is on Models → Connection.</li>
 <li><b>Ollama pull failed</b> — install Ollama from ollama.com, keep it running, then Install models again. The local Script AI provider does not use a cloud key.</li>
 <li><b>CUDA OOM</b> — switch to Wan 5B, CogVideoX if it fits, or Quick Explainer.</li>
