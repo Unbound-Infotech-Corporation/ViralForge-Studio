@@ -26,6 +26,7 @@ from trendforge.settings import AppSettings
 from trendforge.ui.pages.channel import ChannelPage
 from trendforge.ui.pages.create import CreatePage
 from trendforge.ui.pages.discover import DiscoverPage
+from trendforge.ui.pages.mini_series import MiniSeriesPage
 from trendforge.ui.pages.gallery import GalleryPage
 from trendforge.ui.pages.help import HelpPage
 from trendforge.ui.pages.models import ModelsPage
@@ -67,21 +68,31 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.discover = DiscoverPage(settings.trend_region)
         self.create = CreatePage(settings, app_dirs, self.store)
+        self.mini = MiniSeriesPage(settings, app_dirs, self.store)
         self.channel = ChannelPage(settings)
         self.projects = ProjectsPage(self.store)
         self.gallery = GalleryPage(self.store)
         self.models = ModelsPage(settings, app_dirs)
         self.help = HelpPage()
-        for page in (self.discover, self.create, self.channel, self.projects, self.gallery, self.models, self.help):
+        for page in (
+            self.discover,
+            self.create,
+            self.mini,
+            self.channel,
+            self.projects,
+            self.gallery,
+            self.models,
+            self.help,
+        ):
             self.stack.addWidget(page)
 
         # Adobe-style sections, Maestro-style focus path
         self.nav_btns: list[QPushButton] = []
         sections = [
             ("IDEATE", (("Discover", 0),)),
-            ("PRODUCE", (("Create", 1), ("Channel", 2))),
-            ("LIBRARY", (("Projects", 3), ("Gallery", 4))),
-            ("SYSTEM", (("Models", 5), ("Help", 6))),
+            ("PRODUCE", (("Create", 1), ("Mini Series", 2), ("Channel", 3))),
+            ("LIBRARY", (("Projects", 4), ("Gallery", 5))),
+            ("SYSTEM", (("Models", 6), ("Help", 7))),
         ]
         for section, items in sections:
             hdr = QLabel(section)
@@ -109,6 +120,8 @@ class MainWindow(QMainWindow):
         self.discover.topic_chosen.connect(self._from_discover)
         self.create.project_ready.connect(lambda _: self.projects.reload())
         self.create.project_ready.connect(lambda _: self.gallery.reload())
+        self.mini.project_ready.connect(lambda _: self.projects.reload())
+        self.mini.project_ready.connect(lambda _: self.gallery.reload())
         self.channel.saved.connect(self.create.refresh_dropdowns)
         self.models.catalogs_updated.connect(self.create.refresh_dropdowns)
 
@@ -129,12 +142,14 @@ class MainWindow(QMainWindow):
         if index == 0:
             self.discover.reload()
         if index == 2:
-            self.channel.reload()
+            self.mini.reload()
         if index == 3:
-            self.projects.reload()
+            self.channel.reload()
         if index == 4:
-            self.gallery.reload()
+            self.projects.reload()
         if index == 5:
+            self.gallery.reload()
+        if index == 6:
             self.models.refresh_status()
 
     def _from_discover(self, item: TrendItem) -> None:
@@ -151,7 +166,7 @@ class MainWindow(QMainWindow):
 
         help_menu = bar.addMenu("&Help")
         gs = QAction("Getting Started", self)
-        gs.triggered.connect(lambda: self._goto(6))
+        gs.triggered.connect(lambda: self._goto(7))
         help_menu.addAction(gs)
         wiz = QAction("Run setup wizard again", self)
         wiz.triggered.connect(self.show_setup_wizard)

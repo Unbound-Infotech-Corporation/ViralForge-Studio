@@ -64,6 +64,9 @@ class AppSettings:
     channel_audience: str = ""
     channel_cta: str = "Subscribe so you don't miss the next episode."
     brand_voice: BrandVoice = BrandVoice.DOCUMENTARY
+    # Optional. Live comment download is not implemented; ManualPasteProvider is the working path.
+    youtube_api_key: str = ""
+    youtube_credentials_path: str = ""
     series_title: str = ""
     installed_items: list[str] = field(default_factory=list)
 
