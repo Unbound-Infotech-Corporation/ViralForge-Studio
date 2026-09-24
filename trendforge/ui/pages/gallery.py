@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
+from trendforge.services.desktop import open_path
 from trendforge.services.projects import ProjectStore
 
 
@@ -44,4 +44,9 @@ class GalleryPage(QWidget):
             return
         path = item.data(Qt.ItemDataRole.UserRole)
         if path and Path(path).exists():
-            os.startfile(path)  # type: ignore[attr-defined]
+            try:
+                open_path(str(path))
+            except Exception as exc:
+                QMessageBox.warning(self, "Could not play", str(exc))
+        else:
+            QMessageBox.information(self, "No file", "That gallery item is missing on disk.")

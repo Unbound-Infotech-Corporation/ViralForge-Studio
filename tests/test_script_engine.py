@@ -135,6 +135,6 @@ def test_recommend_ids_32gb_gpu():
     assert "piper_lessac" in ids
     assert "ollama_qwen7" in ids
     assert "ollama_qwen14" in ids
-    assert "maestro_ltx25" in ids
-    assert "maestro_wana14b" in ids
-    assert "maestro_h3" in ids
+    assert "maestro_ltx25" not in ids
+    assert "maestro_wana14b" not in ids
+    assert "maestro_h3" not in ids

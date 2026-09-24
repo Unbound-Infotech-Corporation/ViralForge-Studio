@@ -22,7 +22,16 @@ from PySide6.QtWidgets import (
 )
 
 from trendforge.bootstrap import AppDirs
-from trendforge.domain.catalog import dropdown_label, format_choices, format_defaults, model_catalog, style_choices
+from trendforge.domain.catalog import (
+    FORMAT_MARKS,
+    STYLE_MARKS,
+    dropdown_label,
+    format_choices,
+    format_defaults,
+    model_catalog,
+    style_choices,
+    visible_model_catalog,
+)
 from trendforge.domain.enums import (
     AspectRatio,
     BackendKind,
@@ -37,19 +46,21 @@ from trendforge.domain.enums import (
 )
 from trendforge.domain.models import GenerationRequest, PipelineProgress, Project, TrendItem
 from trendforge.services.hardware import detect_hardware
-from trendforge.services.maestro_detect import detect_maestro
 from trendforge.services.pipeline import ProductionPipeline
 from trendforge.services.projects import ProjectStore
 from trendforge.services.review_validation import validate_opinion_input, validate_review_request
 from trendforge.services.script_engine import generate_review_script, generate_script
+from trendforge.services.script_import import apply_script_text
 from trendforge.services.trailer_allowlist import list_entries, match_entry_for_subject
 from trendforge.settings import AppSettings
-from trendforge.ui.widgets import PipelineStrip
+from trendforge.ui.widgets import ChoiceRow, PipelineStrip, mark_icon
 from trendforge.ui.workers import FnWorker, PipelineWorker
 
 
 class CreatePage(QWidget):
     project_ready = Signal(object)
+    produce_started = Signal()
+    job_event = Signal(str)
 
     def __init__(self, settings: AppSettings, dirs: AppDirs, store: ProjectStore, parent=None) -> None:
         super().__init__(parent)
@@ -77,12 +88,12 @@ class CreatePage(QWidget):
         form = QFormLayout()
         self.fmt = QComboBox()
         for label, value in format_choices():
-            self.fmt.addItem(label, value)
+            self.fmt.addItem(mark_icon(FORMAT_MARKS.get(value, "FMT")), label, value)
         self.model = QComboBox()
         self._fill_models()
         self.style = QComboBox()
         for label, value in style_choices():
-            self.style.addItem(label, value)
+            self.style.addItem(mark_icon(STYLE_MARKS.get(value, "ST")), label, value)
         self.aspect = QComboBox()
         for a in AspectRatio:
             self.aspect.addItem(a.value, a.value)
@@ -102,9 +113,12 @@ class CreatePage(QWidget):
         self.episodes = QSpinBox()
         self.episodes.setRange(3, 8)
         self.episodes.setValue(5)
-        form.addRow("Format", self.fmt)
-        form.addRow("Model", self.model)
-        form.addRow("Style", self.style)
+        self.format_row = ChoiceRow("Format", self.fmt)
+        self.model_row = ChoiceRow("Model", self.model)
+        self.style_row = ChoiceRow("Style", self.style)
+        form.addRow(self.format_row)
+        form.addRow(self.model_row)
+        form.addRow(self.style_row)
         form.addRow("Aspect", self.aspect)
         form.addRow("Voice", self.voice)
         form.addRow("Captions", self.captions)
@@ -251,11 +265,13 @@ class CreatePage(QWidget):
         current = self.model.currentData() if self.model.count() else self.settings.last_model_id
         self.model.blockSignals(True)
         self.model.clear()
-        for opt in model_catalog():
-            self.model.addItem(dropdown_label(opt), opt.id)
+        for opt in visible_model_catalog():
+            self.model.addItem(mark_icon(opt.mark or opt.family[:2]), dropdown_label(opt), opt.id)
             self.model.setItemData(self.model.count() - 1, opt.tooltip, Qt.ItemDataRole.ToolTipRole)
         self.model.blockSignals(False)
         self._set_combo(self.model, current or "auto")
+        if hasattr(self, "model_row"):
+            self.model_row.sync_mark()
 
     def _fill_voices(self) -> None:
         current = self.voice.currentData() if self.voice.count() else None
@@ -271,14 +287,13 @@ class CreatePage(QWidget):
         except Exception:
             pass
         self.voice.addItem("Piper — auto (install in Setup if missing)", "piper:en_US-lessac-medium")
-        self.voice.addItem("Maestro clip audio (when using Maestro)", "maestro")
         self.voice.addItem("Edge TTS (free cloud — enable in Settings)", "edge")
         self.voice.blockSignals(False)
         if current:
             self._set_combo(self.voice, current)
 
     def refresh_dropdowns(self) -> None:
-        """Reload model/voice lists after setup installs Piper, Ollama, or Maestro weights."""
+        """Reload model/voice lists after setup installs Piper or Ollama."""
         self._fill_models()
         self._fill_voices()
         self._apply_settings_defaults()
@@ -400,7 +415,7 @@ class CreatePage(QWidget):
         elif voice is VoiceEngine.EDGE_TTS:
             self._set_combo(self.voice, "edge")
         elif voice is VoiceEngine.MAESTRO:
-            self._set_combo(self.voice, "maestro")
+            self._set_combo(self.voice, "sapi")
         else:
             self._set_combo(self.voice, "sapi")
 
@@ -477,8 +492,8 @@ class CreatePage(QWidget):
             model_id=model_id,
             voice=voice,
             piper_voice=piper or self.settings.last_piper_voice,
-            captions=CaptionStyle(self.captions.currentData()),
-            transition=TransitionStyle(self.transition.currentData()),
+            captions=CaptionStyle(self.captions.currentData() or CaptionStyle.NONE.value),
+            transition=TransitionStyle(self.transition.currentData() or TransitionStyle.CROSSFADE.value),
             enable_voiceover=self.vo.isChecked(),
             enable_captions=self.cap.isChecked(),
             enable_music=self.mus.isChecked(),
@@ -580,8 +595,13 @@ class CreatePage(QWidget):
 
         self._plan_worker = FnWorker(work, self)
         self._plan_worker.ok.connect(self._on_script)
-        self._plan_worker.failed.connect(lambda m: self.status.setText(m))
+        self._plan_worker.failed.connect(self._on_plan_fail)
         self._plan_worker.start()
+
+    def _on_plan_fail(self, msg: str) -> None:
+        self.status.setText(msg)
+        self.job_event.emit(f"Script failed · {msg}")
+        self._show_failure(msg)
 
     def _on_script(self, script) -> None:
         req = self._request()
@@ -635,15 +655,6 @@ class CreatePage(QWidget):
         req = self._request()
         if not self._validate_before_run(req):
             return
-        if req.backend in {BackendKind.MAESTRO_DIRECTOR, BackendKind.MAESTRO_STUDIO}:
-            inst = detect_maestro(self.settings.maestro_url, self.settings.pinokio_path)
-            if not inst.running_url:
-                QMessageBox.warning(
-                    self,
-                    "Maestro is not running",
-                    "Start Maestro with start_maestro.bat first (Pinokio not required). TrendForge will not replace cinematic footage with a text slide.",
-                )
-                return
         season = self._project.script.season if self._project and self._project.script else None
         if req.content_format is ContentFormat.DOCUSERIES and season and not resume:
             ep = self._selected_episode()
@@ -676,6 +687,8 @@ class CreatePage(QWidget):
             self.store.save(project)
         self._project = project
         self._persist_last(req)
+        self.produce_started.emit()
+        self.job_event.emit(f"Produce started · {req.model_id} · {req.topic[:80]}")
         pipe = ProductionPipeline(self.settings, self.dirs, self.store)
         self.generate.setEnabled(False)
         self.cancel.setEnabled(True)
@@ -709,6 +722,7 @@ class CreatePage(QWidget):
         self.progress.setValue(prog.percent)
         self.status.setText(prog.message)
         self.strip.set_stage(prog.stage)
+        self.job_event.emit(f"{prog.percent:>3}%  {prog.stage.value}  {prog.message}")
         if self._project and self._project.script:
             self._fill_script(self._project)
             # Reload from disk so shot statuses update
@@ -809,6 +823,7 @@ class CreatePage(QWidget):
             self.status.setText("Season planned — select an episode, then Generate episode.")
         else:
             self.status.setText(f"Done → {project.output_path}")
+            self.job_event.emit(f"Done · {project.output_path}")
         self.project_ready.emit(project)
 
     def _on_fail(self, msg: str) -> None:
@@ -816,9 +831,54 @@ class CreatePage(QWidget):
         self.cancel.setEnabled(False)
         self.resume.setEnabled(True)
         self.status.setText(msg)
+        self.job_event.emit(f"Failed · {msg}")
         if msg != "Cancelled":
             self.strip.set_stage(PipelineStage.FAILED)
-            QMessageBox.warning(self, "Generation failed", msg)
+            self._show_failure(msg)
+
+    def _show_failure(self, msg: str) -> None:
+        text = (msg or "The job failed.").strip()
+        refused = "will not publish" in text or text.startswith("Refusing") or "Refusing" in text
+        title = "Export refused" if refused else "Generation failed"
+        if len(text) > 900:
+            text = text[:900] + "…"
+        text += "\n\nFull lines are in the Job Console: View → Job Console, the status-bar Console button, or Ctrl+`."
+        QMessageBox.warning(self, title, text)
+
+    def import_script_text(self, text: str, mode: str) -> str:
+        """Append or replace the active episode script and persist it for Create."""
+        cleaned = (text or "").strip()
+        if not cleaned:
+            raise ValueError("Nothing to import.")
+        if self._project is None:
+            if not self.topic.text().strip():
+                first = next((line.strip() for line in cleaned.splitlines() if line.strip()), "Imported episode")
+                self.topic.setText(first[:80])
+            req = self._request()
+            project = Project.create((req.topic or "Imported episode")[:80], req, "")
+            folder = self.dirs.projects / project.id
+            folder.mkdir(parents=True, exist_ok=True)
+            project.folder = str(folder)
+            self._project = project
+        topic = self.topic.text().strip() or self._project.title or "Imported episode"
+        self._project.script = apply_script_text(
+            self._project.script,
+            cleaned,
+            mode=mode,
+            topic=topic,
+        )
+        if self._project.script and self._project.script.title:
+            self._project.title = self._project.script.title[:80]
+        self.store.save(self._project)
+        self._fill_script(self._project)
+        self.strip.set_stage(PipelineStage.SCRIPT)
+        count = len(self._project.script.shots) if self._project.script else 0
+        verb = "Replaced" if mode.strip().lower() == "replace" else "Appended to"
+        noun = "shot" if count == 1 else "shots"
+        message = f"{verb} the episode script ({count} {noun})."
+        self.status.setText(message)
+        self.project_ready.emit(self._project)
+        return message
 
     def _cancel(self) -> None:
         if self._worker:

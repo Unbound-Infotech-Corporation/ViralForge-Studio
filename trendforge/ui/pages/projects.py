@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from trendforge.domain.models import Project
+from trendforge.services.desktop import open_path
 from trendforge.services.projects import ProjectStore
 
 
@@ -51,7 +51,9 @@ class ProjectsPage(QWidget):
     def reload(self) -> None:
         self.list.clear()
         for project in self.store.list_projects():
-            label = f"{project.title}  ·  {project.stage.value}  ·  {project.updated_at[:19].replace('T', ' ')}"
+            stamp = (project.updated_at or "")[:19].replace("T", " ")
+            stage = project.stage.value if project.stage else "unknown"
+            label = f"{project.title or 'Untitled'}  ·  {stage}  ·  {stamp}"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, project.id)
             self.list.addItem(item)
@@ -68,13 +70,21 @@ class ProjectsPage(QWidget):
 
     def _open_folder(self) -> None:
         project = self._current()
-        if project and project.folder:
-            os.startfile(project.folder)  # type: ignore[attr-defined]
+        if not project or not project.folder:
+            QMessageBox.information(self, "No folder", "This project has no folder yet.")
+            return
+        try:
+            open_path(project.folder)
+        except Exception as exc:
+            QMessageBox.warning(self, "Could not open folder", str(exc))
 
     def _play(self) -> None:
         project = self._current()
         if project and project.output_path and Path(project.output_path).exists():
-            os.startfile(project.output_path)  # type: ignore[attr-defined]
+            try:
+                open_path(project.output_path)
+            except Exception as exc:
+                QMessageBox.warning(self, "Could not play", str(exc))
         else:
             QMessageBox.information(self, "No output", "This project has no finished MP4 yet.")
 

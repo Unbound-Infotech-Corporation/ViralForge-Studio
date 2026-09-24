@@ -263,6 +263,55 @@ def _cinema_project(folder: Path) -> Project:
     return project
 
 
+def _solid_director(ffmpeg: str):
+    from trendforge.cinema.config import CinemaConfig
+    from trendforge.cinema.director import CinemaDirector
+    from trendforge.cinema.ltx_backend import DryRunLtxBackend
+    from trendforge.cinema.wan_backend import WanBackend
+    from trendforge.services.ffmpeg_tools import run_ffmpeg
+
+    class SolidWan(WanBackend):
+        def __init__(self, exe: str) -> None:
+            self.ffmpeg = exe
+
+        def generate(self, shot, keyframe, dest):
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            proc = run_ffmpeg(
+                [
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    f"color=c=0x123456:s=320x240:d={max(0.4, float(shot.duration_sec))}",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-an",
+                    str(dest),
+                ],
+                self.ffmpeg,
+            )
+            assert proc.returncode == 0, proc.stderr
+            return dest
+
+    def factory(_self, cfg: CinemaConfig, exe: str) -> CinemaDirector:
+        return CinemaDirector(cfg, wan=SolidWan(exe), ltx=DryRunLtxBackend(exe), ffmpeg=exe)
+
+    return factory
+
+
+def test_native_cinema_refuses_card_final(tmp_path: Path) -> None:
+    dirs = _dirs(tmp_path / "app")
+    store = ProjectStore(dirs.projects)
+    pipeline = ProductionPipeline(AppSettings(cinema_dry_run=True), dirs, store)
+    project = _cinema_project(tmp_path / "proj")
+    with pytest.raises(RuntimeError, match="will not publish"):
+        pipeline.run(project)
+    assert project.stage is PipelineStage.FAILED
+    assert not (Path(project.folder) / "output" / "final.mp4").exists()
+    assert not (Path(project.folder) / "output" / "youtube.mp4").exists()
+
+
 def test_native_cinema_tts_failure_marks_project_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -270,6 +319,10 @@ def test_native_cinema_tts_failure_marks_project_failed(
         raise RuntimeError("piper executable not found")
 
     monkeypatch.setattr("trendforge.services.pipeline.synthesize", _boom)
+    monkeypatch.setattr(
+        "trendforge.services.pipeline.ProductionPipeline._cinema_director",
+        _solid_director(_ffmpeg()),
+    )
     dirs = _dirs(tmp_path / "app")
     store = ProjectStore(dirs.projects)
     pipeline = ProductionPipeline(AppSettings(cinema_dry_run=True, ffmpeg_path=_ffmpeg()), dirs, store)
@@ -290,6 +343,10 @@ def test_native_cinema_produce_muxes_voice_music_and_captions(
 
     monkeypatch.setattr("trendforge.services.pipeline.synthesize", _fake_tts)
     ffmpeg = _ffmpeg()
+    monkeypatch.setattr(
+        "trendforge.services.pipeline.ProductionPipeline._cinema_director",
+        _solid_director(ffmpeg),
+    )
     dirs = _dirs(tmp_path / "app")
     store = ProjectStore(dirs.projects)
     pipeline = ProductionPipeline(AppSettings(cinema_dry_run=True, ffmpeg_path=ffmpeg), dirs, store)

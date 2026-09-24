@@ -2,11 +2,11 @@
 
 Local Windows desktop app that turns **currently trending topics** into a **YouTube channel**: Shorts, standard and long videos, and multi-episode narrated docuseries. Native PySide6 UI. No paid API is required for core features.
 
-Cinematic multi-clip generation prefers **[Maestro](https://github.com/Blizaine/Maestro)** (the Pinokio app by Blizaine) when it is installed and running. If Maestro is not found, TrendForge falls back to ComfyUI (if you already run it) or **Quick Explainer** — a CPU path that still produces a real H.264 MP4 with voiceover, captions, music, intro/outro, and a YouTube pack (titles, description, pinned comment, community post).
+Cinematic clips use **ViralForge Cinema** (Wan 2.2 and CogVideoX weights on disk). If those weights are missing, Studio **refuses the export** instead of publishing a title-card stand-in. **Quick Explainer** is the intentional CPU path: a real H.264 MP4 with voiceover, captions, music, intro/outro, and a YouTube pack (titles, description, pinned comment, community post).
 
 ## What you get
 
-1. **First-run setup** — detects GPU, saves your channel voice, and **downloads every local model this PC can run** that you leave checked (Piper voices, Whisper, Ollama script models, Maestro cinematic weights when Maestro is already Started).
+1. **First-run setup** — detects GPU, saves your channel voice, and **downloads every local model this PC can run** that you leave checked (Piper voices, Whisper, Ollama script models).
 2. **Discover** — YouTube trending (via yt-dlp), Google Trends, Reddit, news RSS, movies/TV threads, custom search.
 3. **Create** — Format / Model / Style / Voice dropdowns (VRAM, disk, and speed in the model label). Topic or YouTube URL → script → clips → stitch → YouTube-ready MP4.
 4. **Channel** — name, niche, audience, subscribe CTA, brand voice, flagship series name. Used in outros, thumbnails, and sidecars.
@@ -19,10 +19,9 @@ Cinematic multi-clip generation prefers **[Maestro](https://github.com/Blizaine/
 | --- | --- | --- |
 | Windows 10/11 x64 | Yes | |
 | Python **3.11 or 3.12** (3.10–3.14 also work) | Yes (source install) | 3.12 is the sweet spot |
-| NVIDIA GPU | No for Quick Explainer | **6 GB+ VRAM** recommended for Maestro |
+| NVIDIA GPU | No for Quick Explainer | **6 GB+ VRAM** for Wan / CogVideoX |
 | ffmpeg | Strongly recommended | `imageio-ffmpeg` is bundled as fallback |
-| [Pinokio](https://pinokio.computer) + [Maestro](https://github.com/Blizaine/Maestro) | No | Best quality path; Start it before the wizard can pull video weights |
-| [Ollama](https://ollama.com/download) | No | Smarter scripts. Install + keep running, then the wizard pulls `qwen2.5:7b` / `14b` |
+| [Ollama](https://ollama.com/download) | No | Local Script AI. Install + keep running, then the wizard pulls `qwen2.5:7b` / `14b`. No cloud API key. |
 | ComfyUI | No | Optional if you already have a T2V workflow |
 
 ## Exact install (source, recommended)
@@ -55,16 +54,41 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe run.py
 ```
 
-First launch opens a setup wizard: hardware → channel kit → **Install models**. Every model this GPU/RAM can run is pre-checked. Click **Install selected models**. Ollama and Maestro rows need those apps already running (the wizard will not pop UAC or launch their installers). You can finish setup and install the rest later under **Models & Settings → Install models**.
+First launch opens a setup wizard: hardware → channel kit → **Install models**. Every model this GPU/RAM can run is pre-checked. Click **Install selected models**. Ollama rows need Ollama already running (the wizard will not pop UAC or launch installers). You can finish setup and install the rest later under **Models & Settings → Install models**.
 
-### Optional: Pinokio + Maestro (cinematic AI)
+### Job Console
 
-1. Install Pinokio from https://pinokio.computer
-2. In Pinokio → **Discover**, install **Maestro** (https://github.com/Blizaine/Maestro)
-3. Click **Start** and wait until the Maestro UI loads
-4. In the TrendForge wizard (or Models → Install models), leave the Maestro weight boxes checked and install
+Produce progress opens in the **Job Console** (on by default; uncheck **Show when Produce starts** inside the panel).
 
-If auto-detect misses it, paste the Maestro URL (address bar, e.g. `http://127.0.0.1:7860`) into **Models & Settings → Connection**.
+- **View → Job Console**
+- Status-bar **Console** button
+- **Ctrl+`**
+
+The first launch shows a hint bar until you dismiss it.
+
+### Script Lab and Script AI
+
+**Script Lab** is under **Produce**. It is an in-app browser for Grok, ChatGPT, Claude, and a research tab. Import a selection into the episode script Create uses. The browser needs Qt WebEngine (`pip install PySide6-Addons`). Paste-import and Script AI still work without it.
+
+**Settings → Script AI** (also **Models → Script AI**) stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription is not an API key. The default provider is local **Ollama** (**Models & Settings → Script model**); that path does not need a cloud key.
+
+### Mini Series
+
+**Mini Series** is under **Produce**, between **Create** and **Channel**. Approve the virtual meeting before **Produce Cinema package**. Maestro and dry-run title cards are refused. Paste comments (`Name: comment` or `Name | comment | likes`), rank them, then **Draft next episode**. The series is stored in `series.json`. Live YouTube comment download stays unwired; paste is the working path.
+
+### CogVideoX and Wan
+
+Put checkpoints in the cinema models folder (default `F:\TrendForge\models\cinema`, editable under **Models → Connection → Cinema models folder**):
+
+| Model | Folder |
+| --- | --- |
+| CogVideoX | `cogvideox` |
+| Wan 2.2 TI2V-5B | `wan2.2-ti2v-5b` |
+| Wan 2.2 A14B | `wan2.2-i2v` |
+
+Create lists **CogVideoX** directly beside the Wan rows. Legacy engines stay off that list. If the weights are missing, Generate stops with **Export refused** and does not write a card or silent `final.mp4`.
+
+Native cinema prompts are locked to each shot's beat and voiceover (must depict / must not depict). A headline with no beat or VO is refused instead of generic B-roll.
 
 ### Optional: Ollama
 
@@ -111,16 +135,12 @@ Each row in Create → Model shows **VRAM · disk · speed**. Switch anytime; la
 
 | Option | VRAM | Disk (approx) | Speed | Quality | When to use |
 | --- | --- | --- | --- | --- | --- |
-| Auto | — | — | — | — | Default. Maestro Director if up, else ComfyUI, else Quick. |
-| Quick Explainer | 0 | ~0 | Fast | Good explainer | First run, laptops, CPU |
-| Maestro Director | 8+ GB | Maestro-managed | Slow | Highest | Full plan → clips → combine |
-| LTX-2.5 distilled | ~8 GB | ~18 GB | Fast | High | Default cinematic on 8–12 GB |
-| LTX-2.3 | ~8 GB | ~16 GB | Medium | High | If 2.5 is not downloaded |
-| Wan 2.2 TI2V-5B | ~10 GB | ~12 GB | Medium | High | Wan on mid cards |
-| Wan 2.2 A14B | 16+ GB | ~28 GB | Slow | Highest | Big GPUs only |
-| MiniMax H3 | 12+ GB | ~24 GB | Slow | Highest | Dialogue / long windows |
-| HunyuanVideo-1.5 | 12+ GB | ~25 GB | Slow | High | Cinematic look |
-| ComfyUI | depends | your ckpt | — | — | Existing Comfy setups |
+| Auto | — | — | — | — | ViralForge Cinema, or Quick Explainer without a suitable GPU. |
+| Quick Explainer | 0 | ~0 | Fast | Good explainer | First run, laptops, CPU. Intentional cards. |
+| ViralForge Cinema | model | weights on disk | Slow | Highest | Wan / CogVideoX. Refuses card stand-ins. |
+| Wan 2.2 TI2V-5B | ~10 GB | ~12 GB | Medium | High | Folder `wan2.2-ti2v-5b` |
+| CogVideoX | ~12 GB | ~20 GB | Medium | High | Folder `cogvideox`, listed beside Wan |
+| Wan 2.2 A14B | 16+ GB | ~28 GB | Slow | Highest | Folder `wan2.2-i2v` |
 
 Paid / cloud options (Edge TTS) stay **disabled** until you tick **Enable optional free-cloud fallbacks** in Settings.
 
@@ -150,7 +170,7 @@ Nuitka alternative (optional, not default):
 trendforge/
   app.py                 # Qt entry
   domain/                # models, catalog, enums
-  services/              # trends, Maestro, Comfy, Ollama, stitch, pipeline, installer
+  services/              # trends, cinema, Ollama, stitch, pipeline, installer
   ui/                    # PySide6 windows / pages
   plugins/               # drop-in backend registry
   assets/                # Comfy workflow stub, icons, music
@@ -159,16 +179,19 @@ installer/               # Inno Setup
 tests/
 ```
 
-Add a new video model: extend `trendforge/domain/catalog.py` and, if needed, a Maestro `model_type` hint. Add a whole backend: implement `trendforge/plugins/base.py` and register it in `trendforge/plugins/__init__.py`.
+Add a new video model: extend `trendforge/domain/catalog.py` (`hidden=False` to show it on Create). Add a whole backend: implement `trendforge/plugins/base.py` and register it in `trendforge/plugins/__init__.py`.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
-| Ollama pull failed | Install Ollama, keep it running, retry Install models |
-| Maestro weights failed | Start Maestro in Pinokio, then retry those rows |
-| Maestro not detected | Start it in Pinokio; paste URL in Settings |
-| CUDA OOM | Use LTX distilled, Wan 5B, or Quick Explainer; close other GPU apps |
+| Ollama pull failed | Install Ollama, keep it running, retry Install models. The local provider needs no API key. |
+| Script Lab browser missing | `pip install PySide6-Addons`, then restart. Paste-import still works. |
+| Script AI failed | Chat logins are not API keys. Set provider, key, and model under Settings → Script AI. |
+| Mini Series will not render | Approve the meeting first. Dry-run text cards stay blocked until Wan weights are installed and `cinema_dry_run` is false. |
+| Export refused | Weights missing or the soundtrack is silent. Add CogVideoX/Wan files, or pick Quick Explainer. |
+| Job Console | View → Job Console, status-bar Console, or Ctrl+` |
+| CUDA OOM | Use Wan 5B, CogVideoX if it fits, or Quick Explainer; close other GPU apps |
 | Empty Discover | Network/firewall; Search still works |
 | No voice | Pick Piper after setup, or Windows Settings → Speech |
 | ffmpeg errors | `winget install Gyan.FFmpeg` |
@@ -186,4 +209,4 @@ Add a new video model: extend `trendforge/domain/catalog.py` and, if needed, a M
 
 ## License
 
-MIT. Maestro, WanGP, Pinokio, and individual model weights keep their own licenses — respect those if you use them.
+MIT. Wan, CogVideoX, and other model weights keep their own licenses — respect those if you use them.

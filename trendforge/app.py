@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtWidgets import QApplication
 
+    _preload_webengine()
+
     from trendforge import __app_name__, __org_name__, __version__
     from trendforge.bootstrap import ensure_app_dirs, install_exception_hook
     from trendforge.logging_setup import setup_logging
@@ -88,6 +90,14 @@ def main(argv: list[str] | None = None) -> int:
     hw = detect_hardware()
     print(f"SMOKE_OK version={__version__} gpu={hw.gpu_name!r} vram={hw.vram_total_gb}")
     return 0
+
+
+def _preload_webengine() -> None:
+    """Import Qt WebEngine before QApplication. Missing Addons must not block Studio."""
+    try:
+        import PySide6.QtWebEngineWidgets  # noqa: F401
+    except Exception:
+        return
 
 
 def _install_models_cli() -> int:

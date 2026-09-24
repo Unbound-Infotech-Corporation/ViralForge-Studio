@@ -6,6 +6,12 @@ from pathlib import Path
 from trendforge.cinema.config import CinemaConfig
 from trendforge.cinema.ltx_backend import DryRunLtxBackend, LtxBackend
 from trendforge.cinema.shots import CinemaEpisode, CinemaShot
+from trendforge.cinema.story_prompts import (
+    CinemaPromptError,
+    narrative_role,
+    story_locked_prompt,
+    synthesize_beats_from_vo,
+)
 from trendforge.cinema.wan_backend import DryRunWanBackend, WanBackend
 from trendforge.services.stitcher import concat_cut, concat_xfade
 
@@ -16,6 +22,7 @@ class CinemaResult:
     clip_paths: list[Path] = field(default_factory=list)
     dry_run: bool = True
     backend: str = "native_cinema"
+    card_stand_in: bool = False
 
 
 class CinemaDirector:
@@ -36,6 +43,10 @@ class CinemaDirector:
             ltx = DryRunLtxBackend(ffmpeg)
         self.wan = wan
         self.ltx = ltx
+
+    def uses_card_standin(self) -> bool:
+        """True when hero shots are ffmpeg title cards, not a video model."""
+        return isinstance(self.wan, DryRunWanBackend)
 
     def run(self, episode: CinemaEpisode, work_dir: Path, final_path: Path) -> CinemaResult:
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -72,8 +83,9 @@ class CinemaDirector:
         return CinemaResult(
             final_path=final_path,
             clip_paths=clips,
-            dry_run=self.config.dry_run,
+            dry_run=self.config.dry_run or self.uses_card_standin(),
             backend="native_cinema",
+            card_stand_in=self.uses_card_standin(),
         )
 
 
@@ -85,35 +97,52 @@ def episode_from_script_shots(
     series_title: str = "",
     episode_index: int = 1,
     episode_count: int = 1,
+    style: str = "",
+    category: str = "",
+    voiceover: str = "",
 ) -> CinemaEpisode:
+    """Build an episode whose Wan prompt is locked to each beat.
+
+    Incoming ``visual_prompt`` values are ignored. A headline, or a stock
+    B-roll line that merely repeats the headline, must not become the picture.
+    Missing beats raise CinemaPromptError unless ``voiceover`` can be split
+    into a minimal beat list.
+    """
+    rows = [_shot_row(i, raw) for i, raw in enumerate(shots_payload or [])]
+    if not rows:
+        rows = [
+            _shot_row(i, raw)
+            for i, raw in enumerate(synthesize_beats_from_vo(voiceover, topic=topic))
+        ]
+    if not rows:
+        raise CinemaPromptError(
+            "Cinema has no script beats or voiceover to lock shots to. "
+            "Refusing to render a headline-only prompt."
+        )
     shots: list[CinemaShot] = []
-    for i, s in enumerate(shots_payload):
+    count = len(rows)
+    for i, row in enumerate(rows):
+        role = narrative_role(row["title"], i, count)
+        prompt = story_locked_prompt(
+            topic=topic,
+            script_title=title,
+            shot_title=row["title"],
+            narration=row["narration"],
+            role=role,
+            index=i,
+            style=style,
+            category=category,
+        )
         shots.append(
             CinemaShot(
                 index=i + 1,
-                title=str(s.get("title") or s.get("heading") or f"Shot {i + 1}"),
-                narration=str(s.get("narration") or s.get("voiceover") or s.get("text") or ""),
-                visual_prompt=str(
-                    s.get("visual_prompt")
-                    or s.get("prompt")
-                    or s.get("visual")
-                    or s.get("narration")
-                    or ""
-                ),
-                duration_sec=float(s.get("duration_sec") or s.get("duration") or 4.0),
-                kind=str(s.get("kind") or "hero"),
+                title=row["title"],
+                narration=row["narration"],
+                visual_prompt=prompt,
+                duration_sec=row["duration_sec"],
+                kind=row["kind"],
             )
         )
-    if not shots:
-        shots = [
-            CinemaShot(
-                index=1,
-                title=title or "Opening",
-                narration=topic,
-                visual_prompt=topic,
-                duration_sec=4.0,
-            )
-        ]
     return CinemaEpisode(
         title=title,
         topic=topic,
@@ -122,3 +151,17 @@ def episode_from_script_shots(
         episode_count=episode_count,
         shots=shots,
     )
+
+
+def _shot_row(index: int, raw: dict) -> dict:
+    duration = raw.get("duration_sec", raw.get("duration", 4.0))
+    try:
+        seconds = float(duration or 4.0)
+    except (TypeError, ValueError):
+        seconds = 4.0
+    return {
+        "title": str(raw.get("title") or raw.get("heading") or f"Shot {index + 1}"),
+        "narration": str(raw.get("narration") or raw.get("voiceover") or raw.get("text") or ""),
+        "duration_sec": seconds,
+        "kind": str(raw.get("kind") or "hero"),
+    }

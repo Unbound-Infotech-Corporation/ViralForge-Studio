@@ -131,3 +131,19 @@ class ShotSegmentKind(StrEnum):
     GAMEPLAY = "gameplay"
     TITLE_CARD = "title_card"
     CREDITS = "credits"
+
+
+class ScriptAiProvider(StrEnum):
+    """BYOK script writer. Chat-site logins are not API access."""
+
+    XAI = "xai"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    OLLAMA = "ollama"
+
+
+class ScriptAiTask(StrEnum):
+    OUTLINE = "outline"
+    SHOT_LIST = "shot_list"
+    DIALOGUE = "dialogue"
+    MEETING_NOTES = "meeting_notes"

@@ -65,6 +65,8 @@ class ModelOption:
     tooltip: str = ""
     installable: bool = False
     install_id: str = ""
+    hidden: bool = False
+    mark: str = ""
 
     def fits(self, vram_gb: float) -> bool:
         if self.vram_gb <= 0:

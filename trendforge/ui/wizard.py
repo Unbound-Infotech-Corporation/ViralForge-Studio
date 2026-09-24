@@ -28,7 +28,8 @@ class _Intro(QWizardPage):
         t = QLabel(
             "Build a YouTube channel from one app: Shorts, long narrated videos, and multi-episode docuseries.\n\n"
             "This wizard detects your GPU, saves your channel voice, and downloads the free local models you check — "
-            "Piper narration, Whisper captions, Ollama scripts, and cinematic Maestro weights when Maestro is running."
+            "Piper narration, Whisper captions, and Ollama scripts. "
+            "Wan and CogVideoX weights go in the cinema models folder; Studio will not publish title-card stand-ins."
         )
         t.setWordWrap(True)
         lay.addWidget(t)
@@ -100,12 +101,13 @@ class _Install(QWizardPage):
         self.setTitle("Install models")
         self.setSubTitle(
             "Everything this PC can run is pre-checked. Uncheck what you do not want. "
-            "Ollama and Maestro downloads need those apps already running."
+            "Ollama script models need Ollama already running. No cloud API key."
         )
         lay = QVBoxLayout(self)
         links = QLabel(
-            'Optional: keep <a href="https://ollama.com/download">Ollama</a> running for local script models. '
-            'Cinematic video uses <b>Maestro</b> directly — start it with start_maestro.bat (Pinokio is not required).'
+            'Optional: keep <a href="https://ollama.com/download">Ollama</a> running for local Script AI. '
+            "Cinematic video uses ViralForge Cinema. Put CogVideoX weights in the cinema models folder "
+            "(<code>cogvideox</code>, beside Wan)."
         )
         links.setOpenExternalLinks(True)
         self.panel = InstallPanel(settings, dirs)
@@ -126,7 +128,8 @@ class _Done(QWizardPage):
             "• Standard / Long for subscriber sessions\n"
             "• Docuseries episode for narrated deep dives\n"
             "• Plan a season to outline 4–6 episodes, then generate each one\n\n"
-            "Switch models anytime with the Model dropdown. Auto is fine for beginners."
+            "Switch models anytime with the Model dropdown. Auto is fine for beginners.\n"
+            "Job Console: View → Job Console, the status-bar Console button, or Ctrl+`."
         )
         lab.setWordWrap(True)
         lay = QVBoxLayout(self)

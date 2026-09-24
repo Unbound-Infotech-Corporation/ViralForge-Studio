@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from trendforge.bootstrap import AppDirs
+from trendforge.domain.catalog import is_hidden_model
 from trendforge.domain.enums import (
     AspectRatio,
     CaptionStyle,
@@ -14,6 +15,7 @@ from trendforge.domain.enums import (
     ThemeMode,
     TransitionStyle,
     BrandVoice,
+    ScriptAiProvider,
     VideoStyle,
     VoiceEngine,
 )
@@ -64,8 +66,19 @@ class AppSettings:
     channel_audience: str = ""
     channel_cta: str = "Subscribe so you don't miss the next episode."
     brand_voice: BrandVoice = BrandVoice.DOCUMENTARY
+    # Optional. Live comment download is not implemented; ManualPasteProvider is the working path.
+    youtube_api_key: str = ""
+    youtube_credentials_path: str = ""
     series_title: str = ""
     installed_items: list[str] = field(default_factory=list)
+    # Script AI (BYOK). The key stays in settings.json with the rest of the
+    # local config and is omitted from repr so logs of the object stay clean.
+    script_ai_provider: ScriptAiProvider = ScriptAiProvider.OLLAMA
+    script_ai_api_key: str = field(default="", repr=False)
+    script_ai_base_url: str = ""
+    script_ai_model: str = ""
+    show_console_on_produce: bool = True
+    console_hint_shown: bool = False
 
     _path: Path | None = field(default=None, repr=False, compare=False)
 
@@ -77,7 +90,16 @@ class AppSettings:
             settings._path = path
             settings.save()
             return settings
-        raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, UnicodeError):
+            settings = cls()
+            settings._path = path
+            return settings
+        if not isinstance(raw, dict):
+            settings = cls()
+            settings._path = path
+            return settings
         settings = cls._from_dict(raw)
         settings._path = path
         return settings
@@ -101,28 +123,45 @@ class AppSettings:
             if key not in known or key == "_path":
                 continue
             data[key] = value
-        if "theme" in data:
-            data["theme"] = ThemeMode(data["theme"])
-        if "last_style" in data:
-            data["last_style"] = VideoStyle(data["last_style"])
-        if "last_length" in data:
-            data["last_length"] = LengthPreset(data["last_length"])
-        if "last_format" in data:
-            try:
-                data["last_format"] = ContentFormat(data["last_format"])
-            except ValueError:
-                data["last_format"] = ContentFormat.VIDEO
-        if "brand_voice" in data:
-            try:
-                data["brand_voice"] = BrandVoice(data["brand_voice"])
-            except ValueError:
-                data["brand_voice"] = BrandVoice.DOCUMENTARY
-        if "last_aspect" in data:
-            data["last_aspect"] = AspectRatio(data["last_aspect"])
-        if "last_voice" in data:
-            data["last_voice"] = VoiceEngine(data["last_voice"])
-        if "last_caption" in data:
-            data["last_caption"] = CaptionStyle(data["last_caption"])
-        if "last_transition" in data:
-            data["last_transition"] = TransitionStyle(data["last_transition"])
+        data["theme"] = _enum(ThemeMode, data.get("theme"), ThemeMode.DARK)
+        data["last_style"] = _enum(VideoStyle, data.get("last_style"), VideoStyle.CINEMATIC)
+        data["last_length"] = _enum(LengthPreset, data.get("last_length"), LengthPreset.SHORTS)
+        data["last_format"] = _enum(ContentFormat, data.get("last_format"), ContentFormat.VIDEO)
+        data["brand_voice"] = _enum(BrandVoice, data.get("brand_voice"), BrandVoice.DOCUMENTARY)
+        data["last_aspect"] = _enum(AspectRatio, data.get("last_aspect"), AspectRatio.WIDE)
+        data["last_voice"] = _enum(VoiceEngine, data.get("last_voice"), VoiceEngine.WINDOWS_SAPI)
+        data["last_caption"] = _enum(CaptionStyle, data.get("last_caption"), CaptionStyle.NONE)
+        data["last_transition"] = _enum(TransitionStyle, data.get("last_transition"), TransitionStyle.CROSSFADE)
+        data["script_ai_provider"] = _enum(
+            ScriptAiProvider, data.get("script_ai_provider"), ScriptAiProvider.OLLAMA
+        )
+        if data.get("script_ai_api_key") is None:
+            data["script_ai_api_key"] = ""
+        if data.get("script_ai_base_url") is None:
+            data["script_ai_base_url"] = ""
+        if data.get("script_ai_model") is None:
+            data["script_ai_model"] = ""
+        if is_hidden_model(str(data.get("last_model_id") or "")):
+            data["last_model_id"] = "auto"
+        if "installed_items" in data and not isinstance(data["installed_items"], list):
+            data["installed_items"] = []
+        if "extra_model_scan_dirs" in data and not isinstance(data["extra_model_scan_dirs"], list):
+            data["extra_model_scan_dirs"] = []
+        if "show_console_on_produce" in data:
+            data["show_console_on_produce"] = bool(data["show_console_on_produce"])
+        if "console_hint_shown" in data:
+            data["console_hint_shown"] = bool(data["console_hint_shown"])
+        if "prefer_native_cinema" in data:
+            data["prefer_native_cinema"] = bool(data["prefer_native_cinema"])
+        if "cinema_dry_run" in data:
+            data["cinema_dry_run"] = bool(data["cinema_dry_run"])
         return cls(**data)
+
+
+def _enum(enum_cls: type, value: Any, default: Any) -> Any:
+    if value is None:
+        return default
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError, KeyError):
+        return default
