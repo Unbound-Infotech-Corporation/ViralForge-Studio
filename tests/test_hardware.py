@@ -12,14 +12,16 @@ def test_no_gpu_uses_quick():
 
 
 def test_8gb_avoids_a14b():
-    backend, model, _ = recommend_for_vram(8, True)
-    assert backend is BackendKind.MAESTRO_DIRECTOR
+    backend, model, notes = recommend_for_vram(8, True)
+    assert backend is BackendKind.NATIVE_CINEMA
     assert model != "wan22_a14b"
+    assert notes
+    assert "Pinokio" not in " ".join(notes)
 
 
 def test_24gb_can_use_large():
     backend, model, _ = recommend_for_vram(24, True)
-    assert backend is BackendKind.MAESTRO_DIRECTOR
+    assert backend is BackendKind.NATIVE_CINEMA
     assert model == "wan22_a14b"
 
 

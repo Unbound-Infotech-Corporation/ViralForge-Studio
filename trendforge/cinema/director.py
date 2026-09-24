@@ -16,6 +16,7 @@ class CinemaResult:
     clip_paths: list[Path] = field(default_factory=list)
     dry_run: bool = True
     backend: str = "native_cinema"
+    card_stand_in: bool = False
 
 
 class CinemaDirector:
@@ -36,6 +37,10 @@ class CinemaDirector:
             ltx = DryRunLtxBackend(ffmpeg)
         self.wan = wan
         self.ltx = ltx
+
+    def uses_card_standin(self) -> bool:
+        """True when hero shots are ffmpeg title cards, not a video model."""
+        return isinstance(self.wan, DryRunWanBackend)
 
     def run(self, episode: CinemaEpisode, work_dir: Path, final_path: Path) -> CinemaResult:
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -72,8 +77,9 @@ class CinemaDirector:
         return CinemaResult(
             final_path=final_path,
             clip_paths=clips,
-            dry_run=self.config.dry_run,
+            dry_run=self.config.dry_run or self.uses_card_standin(),
             backend="native_cinema",
+            card_stand_in=self.uses_card_standin(),
         )
 
 

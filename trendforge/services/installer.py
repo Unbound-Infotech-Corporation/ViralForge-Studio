@@ -165,14 +165,18 @@ def _install_maestro(item: InstallItem, settings: AppSettings, on_progress: Prog
     inst = detect_maestro(settings.maestro_url, settings.pinokio_path)
     if not inst.running_url:
         raise InstallError(
-            "Maestro is not running. Start Maestro with start_maestro.bat, then re-run setup to download cinematic weights."
+            "That cinematic row is a legacy installer and is not part of setup. "
+            "Place Wan or CogVideoX weights in the cinema models folder instead."
         )
     api = MaestroClient(inst.running_url)
     mtype = api.match_model(item.maestro_hint)
     if not mtype:
-        raise InstallError(f"Maestro has no model matching '{item.maestro_hint}'. Start Maestro and update it.")
+        raise InstallError(
+            f"No local checkpoint matched '{item.maestro_hint}'. "
+            "Place Wan or CogVideoX weights in the cinema models folder."
+        )
     if on_progress:
-        on_progress(f"Asking Maestro to download {mtype}…", 5)
+        on_progress(f"Legacy weight request for {mtype}…", 5)
     try:
         api.start_weight_download(mtype)
     except MaestroError as exc:
@@ -280,7 +284,9 @@ def ids_that_fit(
     used = 0.0
     chosen: list[str] = []
     for spec in ordered:
-        if local_only and spec.kind in {"maestro", "ollama"}:
+        if spec.kind == "maestro":
+            continue
+        if local_only and spec.kind == "ollama":
             continue
         if item_installed(spec, dirs, settings):
             continue

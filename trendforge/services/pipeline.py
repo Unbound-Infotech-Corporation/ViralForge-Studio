@@ -8,6 +8,7 @@ from trendforge.bootstrap import AppDirs
 from trendforge.domain.catalog import option_by_id
 from trendforge.cinema.config import CinemaConfig
 from trendforge.cinema.director import CinemaDirector, episode_from_script_shots
+from trendforge.cinema.publish import cinema_publish_block_reason
 from trendforge.domain.enums import (
     BackendKind,
     CaptionStyle,
@@ -24,7 +25,7 @@ from trendforge.services.captions import write_ass, write_srt
 from trendforge.services.cards import canvas_size, render_card
 from trendforge.services.comfyui_client import ComfyUIClient
 from trendforge.services.debug_trace import host_snapshot, log as dbg, validate_video
-from trendforge.services.ffmpeg_tools import find_ffmpeg, require_audio_stream
+from trendforge.services.ffmpeg_tools import find_ffmpeg, has_audio_stream, require_audio_stream
 from trendforge.services.maestro_client import (
     MaestroClient,
     MaestroError,
@@ -97,8 +98,14 @@ class ProductionPipeline:
             if not request.source_url:
                 raise RuntimeError("Clip + narrate needs a YouTube URL in the topic field.")
             return BackendKind.SOURCE_CLIP, "source_clip", client
-        if request.backend is BackendKind.NATIVE_CINEMA or request.model_id == "viralforge_cinema":
-            return BackendKind.NATIVE_CINEMA, "viralforge_cinema", client
+        if request.backend is BackendKind.NATIVE_CINEMA or request.model_id in {
+            "viralforge_cinema",
+            "wan22_ti2v_5b",
+            "wan22_a14b",
+            "cogvideox",
+        }:
+            model_id = request.model_id if request.model_id not in {"", "auto"} else "viralforge_cinema"
+            return BackendKind.NATIVE_CINEMA, model_id, client
         if request.backend is BackendKind.AUTO or request.model_id == "auto":
             prefer_native = bool(getattr(self.settings, "prefer_native_cinema", True))
             if prefer_native:
@@ -111,7 +118,9 @@ class ProductionPipeline:
             return BackendKind.QUICK_EXPLAINER, "quick_explainer", client
         if request.backend in {BackendKind.MAESTRO_DIRECTOR, BackendKind.MAESTRO_STUDIO}:
             if not client or not client.ping():
-                raise MaestroError("Maestro is not running. Run start_maestro.bat (or launch.py in the Maestro app folder), then generate again.")
+                raise MaestroError(
+                    "That legacy engine is not available. Pick ViralForge Cinema, Wan, CogVideoX, or Quick Explainer."
+                )
             return request.backend, request.model_id, client
         if request.backend is BackendKind.COMFYUI:
             comfy = ComfyUIClient(self.settings.comfyui_url)
@@ -785,9 +794,8 @@ class ProductionPipeline:
         on_progress: ProgressCb | None,
         cancelled: Callable[[], bool],
     ) -> None:
-        """Wan 2.2 I2V + LTX-2.5 bridges + stitch — no Maestro app."""
+        """Wan 2.2 I2V + optional CogVideoX + LTX bridges + stitch."""
         assert project.script
-        ffmpeg = find_ffmpeg(self.settings.ffmpeg_path)
         folder = Path(project.folder)
         work = folder / "cinema_work"
         out_dir = folder / "output"
@@ -797,6 +805,21 @@ class ProductionPipeline:
         yt = out_dir / "youtube.mp4"
         for stale in (final, yt):
             stale.unlink(missing_ok=True)
+
+        cfg = CinemaConfig.from_settings(self.settings)
+        probe = self._cinema_director(cfg, "ffmpeg")
+        if probe.uses_card_standin():
+            raise RuntimeError(
+                cinema_publish_block_reason(
+                    card_stand_in=True,
+                    require_audio=False,
+                    has_audio=None,
+                    model_id=project.request.model_id or "viralforge_cinema",
+                    models_dir=cfg.models_dir,
+                )
+            )
+
+        ffmpeg = find_ffmpeg(self.settings.ffmpeg_path)
 
         req = project.request
         shots = project.script.shots
@@ -831,7 +854,6 @@ class ProductionPipeline:
         ]
         title = project.script.title or req.topic or "Episode"
         topic = req.topic or title
-        cfg = CinemaConfig.from_settings(self.settings)
         self._emit(
             on_progress,
             stage=PipelineStage.GENERATE,
@@ -842,9 +864,30 @@ class ProductionPipeline:
         )
         self._check(cancelled)
         episode = episode_from_script_shots(str(title), str(topic), shots_payload)
-        director = CinemaDirector(cfg, ffmpeg=ffmpeg)
+        director = self._cinema_director(cfg, ffmpeg)
+        if director.uses_card_standin():
+            raise RuntimeError(
+                cinema_publish_block_reason(
+                    card_stand_in=True,
+                    require_audio=False,
+                    has_audio=None,
+                    model_id=req.model_id or "viralforge_cinema",
+                    models_dir=cfg.models_dir,
+                )
+            )
         picture = work / "picture.mp4"
         result = director.run(episode, work, picture)
+        if result.card_stand_in:
+            picture.unlink(missing_ok=True)
+            raise RuntimeError(
+                cinema_publish_block_reason(
+                    card_stand_in=True,
+                    require_audio=False,
+                    has_audio=None,
+                    model_id=req.model_id or "viralforge_cinema",
+                    models_dir=cfg.models_dir,
+                )
+            )
 
         heroes = [p for p in result.clip_paths if not p.name.startswith("bridge_")]
         if len(heroes) != len(shots):
@@ -962,6 +1005,18 @@ class ProductionPipeline:
             yt.unlink(missing_ok=True)
             raise RuntimeError(f"YouTube export failed: {exc}") from exc
 
+        silent = cinema_publish_block_reason(
+            card_stand_in=False,
+            require_audio=req.enable_voiceover or req.enable_music,
+            has_audio=has_audio_stream(final, ffmpeg),
+            model_id=req.model_id or "viralforge_cinema",
+            models_dir=cfg.models_dir,
+        )
+        if silent:
+            final.unlink(missing_ok=True)
+            yt.unlink(missing_ok=True)
+            raise RuntimeError(silent)
+
         project.output_path = str(yt if yt.exists() else final)
         self._emit(
             on_progress,
@@ -970,6 +1025,9 @@ class ProductionPipeline:
             message=f"Stitched {len(result.clip_paths)} cinema clips with audio",
             cancellable=False,
         )
+
+    def _cinema_director(self, cfg: CinemaConfig, ffmpeg: str) -> CinemaDirector:
+        return CinemaDirector(cfg, ffmpeg=ffmpeg)
 
 
     def _run_maestro_director(

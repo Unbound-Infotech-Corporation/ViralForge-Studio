@@ -102,17 +102,21 @@ def recommend_for_vram(vram_gb: float, has_nvidia: bool) -> tuple[BackendKind, s
     notes: list[str] = []
     if not has_nvidia or vram_gb < 6:
         notes.append(
-            "No NVIDIA GPU with 6 GB+ VRAM detected. Use Quick Explainer now; install Pinokio + Maestro later for cinematic AI."
+            "No NVIDIA GPU with 6 GB+ VRAM detected. Use Quick Explainer. "
+            "Cinematic Wan and CogVideoX need a GPU and local weights — Studio will not publish title-card stand-ins."
         )
         return BackendKind.QUICK_EXPLAINER, "quick_explainer", notes
     if vram_gb < 10:
-        notes.append("8 GB class GPU: Maestro Director / LTX distilled is the sweet spot. Avoid Wan A14B.")
-        return BackendKind.MAESTRO_DIRECTOR, "ltx25_distilled", notes
+        notes.append(
+            "8 GB class GPU: ViralForge Cinema when a lighter Wan or CogVideoX checkpoint fits. "
+            "Skip Wan 2.2 A14B. Quick Explainer always works."
+        )
+        return BackendKind.NATIVE_CINEMA, "viralforge_cinema", notes
     if vram_gb < 16:
-        notes.append("12 GB class GPU: MiniMax H3 or Wan 2.2 5B when Maestro is running.")
-        return BackendKind.MAESTRO_DIRECTOR, "minimax_h3", notes
-    notes.append("16 GB+ GPU: you can run larger Wan / Hunyuan models comfortably.")
-    return BackendKind.MAESTRO_DIRECTOR, "wan22_a14b", notes
+        notes.append("12 GB class GPU: CogVideoX or Wan 2.2 TI2V-5B in the cinema models folder.")
+        return BackendKind.NATIVE_CINEMA, "cogvideox", notes
+    notes.append("16 GB+ GPU: Wan 2.2 A14B or CogVideoX in the cinema models folder.")
+    return BackendKind.NATIVE_CINEMA, "wan22_a14b", notes
 
 
 def detect_hardware() -> HardwareProfile:

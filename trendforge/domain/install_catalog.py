@@ -179,14 +179,6 @@ def recommend_ids(hw: HardwareProfile) -> set[str]:
     picks = {"ffmpeg", "piper_runtime", "piper_lessac", "piper_ryan", "whisper_base", "ollama_qwen7"}
     if hw.ram_total_gb >= 24:
         picks.add("ollama_qwen14")
-    if hw.cuda_available and hw.vram_total_gb >= 8:
-        picks.add("maestro_ltx25")
-    if hw.cuda_available and hw.vram_total_gb >= 16:
-        picks.add("maestro_wana14b")
-        picks.add("maestro_h3")
-    elif hw.cuda_available and hw.vram_total_gb >= 12:
-        picks.add("maestro_wan5b")
-        picks.add("maestro_h3")
     return picks
 
 

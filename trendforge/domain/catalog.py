@@ -100,19 +100,21 @@ def model_catalog() -> list[ModelOption]:
             disk_gb=0,
             quality=4,
             speed=4,
-            tooltip="Uses hardware detection. If Maestro is running, Auto waits for real footage — it will not output a blank color plate. Pick Quick Explainer for cards that always work.",
+            tooltip="Uses this PC's hardware. Cinematic models publish real footage only — title-card stand-ins are refused. Pick Quick Explainer for cards that always work.",
+            mark="AU",
         ),
         ModelOption(
             id="viralforge_cinema",
             name="ViralForge Cinema (native)",
             backend=BackendKind.NATIVE_CINEMA,
             family="ViralForge",
-            description="Own Maestro-like engine: Wan 2.2 I2V heroes + LTX-2.5 bridges + stitch. No Maestro app.",
+            description="Native engine: Wan 2.2 heroes, CogVideoX when selected, LTX bridges, then stitch.",
             vram_gb=0,
             disk_gb=0,
             quality=5,
             speed=3,
-            tooltip="Default for long-form. Dry-run uses ffmpeg cards until HF weights are downloaded.",
+            tooltip="Wan 2.2 and CogVideoX weights live in the cinema models folder. Missing weights are refused instead of published as title cards.",
+            mark="VF",
         ),
         ModelOption(
             id="quick_explainer",
@@ -126,6 +128,7 @@ def model_catalog() -> list[ModelOption]:
             speed=5,
             tooltip="Best first-run path. Produces a real YouTube-ready MP4 in minutes on CPU.",
             installable=False,
+            mark="QE",
         ),
         ModelOption(
             id="source_clip",
@@ -139,6 +142,7 @@ def model_catalog() -> list[ModelOption]:
             speed=4,
             tooltip="Paste a YouTube URL as the topic. Works like movie recap / story-time channels — clips existing footage with new narration.",
             installable=False,
+            mark="YT",
         ),
         ModelOption(
             id="media_review",
@@ -152,6 +156,7 @@ def model_catalog() -> list[ModelOption]:
             speed=4,
             tooltip="Requires your written opinion, rating, and an official trailer URL from the allowlisted studio channel.",
             installable=False,
+            mark="RV",
         ),
         ModelOption(
             id="maestro_director",
@@ -165,7 +170,9 @@ def model_catalog() -> list[ModelOption]:
             speed=2,
             maestro_type_hint="ltx2",
             supports_audio=True,
-            tooltip="Requires Maestro running (start_maestro.bat). Highest quality local cinematic path.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="MS",
         ),
         ModelOption(
             id="ltx25_distilled",
@@ -179,7 +186,9 @@ def model_catalog() -> list[ModelOption]:
             speed=4,
             maestro_type_hint="ltx2.5",
             supports_audio=True,
-            tooltip="Good default cinematic model on 8–12 GB cards. Weights download on first Maestro use.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="LT",
         ),
         ModelOption(
             id="ltx23",
@@ -192,12 +201,14 @@ def model_catalog() -> list[ModelOption]:
             quality=4,
             speed=3,
             maestro_type_hint="ltx2.3",
-            tooltip="Slightly older LTX family. Use if 2.5 is not downloaded yet.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="LT",
         ),
         ModelOption(
             id="wan22_ti2v_5b",
             name="Wan 2.2 TI2V-5B",
-            backend=BackendKind.MAESTRO_STUDIO,
+            backend=BackendKind.NATIVE_CINEMA,
             family="Wan",
             description="Lighter Wan 2.2 text/image-to-video. Fits more GPUs than A14B.",
             vram_gb=10,
@@ -205,12 +216,26 @@ def model_catalog() -> list[ModelOption]:
             quality=4,
             speed=3,
             maestro_type_hint="ti2v-5b",
-            tooltip="Recommended Wan variant under ~12 GB VRAM.",
+            tooltip="Place Wan 2.2 TI2V-5B weights in the cinema models folder (wan2.2-ti2v-5b). Studio will not publish a title-card stand-in.",
+            mark="W5",
+        ),
+        ModelOption(
+            id="cogvideox",
+            name="CogVideoX",
+            backend=BackendKind.NATIVE_CINEMA,
+            family="CogVideoX",
+            description="CogVideoX text-to-video, listed beside Wan. Weights stay in the cinema models folder.",
+            vram_gb=12,
+            disk_gb=20,
+            quality=4,
+            speed=3,
+            tooltip="Place CogVideoX weights in the cinema models folder (cogvideox), next to Wan. Missing weights are refused — no card final.",
+            mark="CX",
         ),
         ModelOption(
             id="wan22_a14b",
             name="Wan 2.2 A14B",
-            backend=BackendKind.MAESTRO_STUDIO,
+            backend=BackendKind.NATIVE_CINEMA,
             family="Wan",
             description="Larger Wan 2.2 model. Higher quality, much heavier.",
             vram_gb=16,
@@ -218,7 +243,8 @@ def model_catalog() -> list[ModelOption]:
             quality=5,
             speed=2,
             maestro_type_hint="a14b",
-            tooltip="Needs a 16 GB+ card for comfortable local runs. Auto path will avoid this on smaller GPUs.",
+            tooltip="Needs a 16 GB+ card. Weights go in the cinema models folder (wan2.2-i2v). Title-card stand-ins are not published.",
+            mark="WA",
         ),
         ModelOption(
             id="minimax_h3",
@@ -232,7 +258,9 @@ def model_catalog() -> list[ModelOption]:
             speed=2,
             maestro_type_hint="h3",
             supports_audio=True,
-            tooltip="Excellent for dialogue and longer sequences. Prefer 12 GB+ VRAM.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="H3",
         ),
         ModelOption(
             id="hunyuan_15",
@@ -245,7 +273,9 @@ def model_catalog() -> list[ModelOption]:
             quality=4,
             speed=2,
             maestro_type_hint="hunyuan",
-            tooltip="Strong cinematic look. Quantized variants are preferred under 16 GB.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="HY",
         ),
         ModelOption(
             id="comfyui",
@@ -257,7 +287,9 @@ def model_catalog() -> list[ModelOption]:
             disk_gb=0,
             quality=4,
             speed=3,
-            tooltip="Detected at http://127.0.0.1:8188 by default. You must have a video checkpoint loaded in ComfyUI.",
+            tooltip="Legacy engine. Hidden from Create.",
+            hidden=True,
+            mark="CF",
         ),
     ]
 
@@ -267,3 +299,38 @@ def option_by_id(model_id: str) -> ModelOption | None:
         if item.id == model_id:
             return item
     return None
+
+
+def visible_model_catalog() -> list[ModelOption]:
+    """Create-page models. Legacy Maestro / Comfy rows stay in the full catalog but hidden."""
+    return [item for item in model_catalog() if not item.hidden]
+
+
+def is_hidden_model(model_id: str | None) -> bool:
+    if not model_id:
+        return False
+    item = option_by_id(model_id)
+    return bool(item and item.hidden)
+
+
+FORMAT_MARKS = {
+    ContentFormat.SHORTS.value: "SH",
+    ContentFormat.VIDEO.value: "SV",
+    ContentFormat.LONG.value: "LV",
+    ContentFormat.REVIEW.value: "RV",
+    ContentFormat.DOCUSERIES.value: "DS",
+    ContentFormat.SEASON.value: "SE",
+}
+
+STYLE_MARKS = {
+    VideoStyle.EXPLAINER.value: "EX",
+    VideoStyle.BREAKDOWN.value: "BD",
+    VideoStyle.DOCUMENTARY.value: "DC",
+    VideoStyle.NEWS_RECAP.value: "NW",
+    VideoStyle.RANKING.value: "RK",
+    VideoStyle.STORY.value: "ST",
+    VideoStyle.EDUCATIONAL.value: "ED",
+    VideoStyle.CINEMATIC.value: "CM",
+    VideoStyle.REACTION.value: "RC",
+    VideoStyle.REVIEW.value: "RV",
+}
