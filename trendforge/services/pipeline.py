@@ -804,6 +804,47 @@ class ProductionPipeline:
             raise RuntimeError(
                 "Voiceover is enabled but the script has no narration. Refusing a silent export."
             )
+        shots_payload = [
+            {
+                "title": s.title or "",
+                "narration": s.narration or "",
+                "duration_sec": float(s.duration_sec or 4.0),
+                "kind": "hero",
+            }
+            for s in shots
+        ]
+        title = project.script.title or req.topic or "Episode"
+        topic = req.topic or title
+        self._emit(
+            on_progress,
+            stage=PipelineStage.GENERATE,
+            percent=20,
+            message="ViralForge Cinema: locking story beats",
+            clip_total=len(shots_payload),
+            cancellable=True,
+        )
+        self._check(cancelled)
+        episode = episode_from_script_shots(
+            str(title),
+            str(topic),
+            shots_payload,
+            style=req.style.value,
+            category=req.category.value,
+        )
+        if len(episode.shots) != len(shots):
+            raise RuntimeError(
+                f"Cinema planned {len(episode.shots)} story beats for {len(shots)} script shots. "
+                "Refusing to export."
+            )
+        for script_shot, cinema_shot in zip(shots, episode.shots, strict=True):
+            script_shot.visual_prompt = cinema_shot.visual_prompt
+            log.info(
+                "Cinema shot %s [%s] prompt: %s",
+                cinema_shot.index,
+                script_shot.title,
+                cinema_shot.visual_prompt,
+            )
+
         music = None
         if req.enable_music:
             music = ensure_bed_track(self.dirs)
@@ -819,29 +860,7 @@ class ProductionPipeline:
                 if wav is not None:
                     voice_by_index[i] = wav
 
-        shots_payload = [
-            {
-                "title": s.title or "",
-                "narration": s.narration or "",
-                "visual_prompt": s.visual_prompt or s.narration or "",
-                "duration_sec": float(s.duration_sec or 4.0),
-                "kind": "hero",
-            }
-            for s in shots
-        ]
-        title = project.script.title or req.topic or "Episode"
-        topic = req.topic or title
         cfg = CinemaConfig.from_settings(self.settings)
-        self._emit(
-            on_progress,
-            stage=PipelineStage.GENERATE,
-            percent=20,
-            message="ViralForge Cinema: rendering shots",
-            clip_total=len(shots_payload),
-            cancellable=True,
-        )
-        self._check(cancelled)
-        episode = episode_from_script_shots(str(title), str(topic), shots_payload)
         director = CinemaDirector(cfg, ffmpeg=ffmpeg)
         picture = work / "picture.mp4"
         result = director.run(episode, work, picture)
