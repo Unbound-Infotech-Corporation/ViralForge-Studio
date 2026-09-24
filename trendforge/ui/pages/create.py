@@ -42,6 +42,7 @@ from trendforge.services.pipeline import ProductionPipeline
 from trendforge.services.projects import ProjectStore
 from trendforge.services.review_validation import validate_opinion_input, validate_review_request
 from trendforge.services.script_engine import generate_review_script, generate_script
+from trendforge.services.script_import import apply_script_text
 from trendforge.services.trailer_allowlist import list_entries, match_entry_for_subject
 from trendforge.settings import AppSettings
 from trendforge.ui.widgets import PipelineStrip
@@ -819,6 +820,41 @@ class CreatePage(QWidget):
         if msg != "Cancelled":
             self.strip.set_stage(PipelineStage.FAILED)
             QMessageBox.warning(self, "Generation failed", msg)
+
+    def import_script_text(self, text: str, mode: str) -> str:
+        """Append or replace the active episode script and persist it for Create."""
+        cleaned = (text or "").strip()
+        if not cleaned:
+            raise ValueError("Nothing to import.")
+        if self._project is None:
+            if not self.topic.text().strip():
+                first = next((line.strip() for line in cleaned.splitlines() if line.strip()), "Imported episode")
+                self.topic.setText(first[:80])
+            req = self._request()
+            project = Project.create((req.topic or "Imported episode")[:80], req, "")
+            folder = self.dirs.projects / project.id
+            folder.mkdir(parents=True, exist_ok=True)
+            project.folder = str(folder)
+            self._project = project
+        topic = self.topic.text().strip() or self._project.title or "Imported episode"
+        self._project.script = apply_script_text(
+            self._project.script,
+            cleaned,
+            mode=mode,
+            topic=topic,
+        )
+        if self._project.script and self._project.script.title:
+            self._project.title = self._project.script.title[:80]
+        self.store.save(self._project)
+        self._fill_script(self._project)
+        self.strip.set_stage(PipelineStage.SCRIPT)
+        count = len(self._project.script.shots) if self._project.script else 0
+        verb = "Replaced" if mode.strip().lower() == "replace" else "Appended to"
+        noun = "shot" if count == 1 else "shots"
+        message = f"{verb} the episode script ({count} {noun})."
+        self.status.setText(message)
+        self.project_ready.emit(self._project)
+        return message
 
     def _cancel(self) -> None:
         if self._worker:

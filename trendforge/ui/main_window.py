@@ -30,7 +30,17 @@ from trendforge.ui.pages.gallery import GalleryPage
 from trendforge.ui.pages.help import HelpPage
 from trendforge.ui.pages.models import ModelsPage
 from trendforge.ui.pages.projects import ProjectsPage
+from trendforge.ui.pages.script_lab import ScriptLabPage
 from trendforge.ui.wizard import SetupWizard
+
+PAGE_DISCOVER = 0
+PAGE_CREATE = 1
+PAGE_SCRIPT_LAB = 2
+PAGE_CHANNEL = 3
+PAGE_PROJECTS = 4
+PAGE_GALLERY = 5
+PAGE_MODELS = 6
+PAGE_HELP = 7
 
 
 class MainWindow(QMainWindow):
@@ -67,21 +77,31 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.discover = DiscoverPage(settings.trend_region)
         self.create = CreatePage(settings, app_dirs, self.store)
+        self.script_lab = ScriptLabPage(settings, app_dirs, self.create)
         self.channel = ChannelPage(settings)
         self.projects = ProjectsPage(self.store)
         self.gallery = GalleryPage(self.store)
         self.models = ModelsPage(settings, app_dirs)
         self.help = HelpPage()
-        for page in (self.discover, self.create, self.channel, self.projects, self.gallery, self.models, self.help):
+        for page in (
+            self.discover,
+            self.create,
+            self.script_lab,
+            self.channel,
+            self.projects,
+            self.gallery,
+            self.models,
+            self.help,
+        ):
             self.stack.addWidget(page)
 
         # Adobe-style sections, Maestro-style focus path
         self.nav_btns: list[QPushButton] = []
         sections = [
-            ("IDEATE", (("Discover", 0),)),
-            ("PRODUCE", (("Create", 1), ("Channel", 2))),
-            ("LIBRARY", (("Projects", 3), ("Gallery", 4))),
-            ("SYSTEM", (("Models", 5), ("Help", 6))),
+            ("IDEATE", (("Discover", PAGE_DISCOVER),)),
+            ("PRODUCE", (("Script Lab", PAGE_SCRIPT_LAB), ("Create", PAGE_CREATE), ("Channel", PAGE_CHANNEL))),
+            ("LIBRARY", (("Projects", PAGE_PROJECTS), ("Gallery", PAGE_GALLERY))),
+            ("SYSTEM", (("Models", PAGE_MODELS), ("Help", PAGE_HELP))),
         ]
         for section, items in sections:
             hdr = QLabel(section)
@@ -120,26 +140,30 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"{hw.gpu_name} · {hw.vram_total_gb} GB · Engine: {cinema} · {mae} · {app_dirs.root}"
         )
-        self._goto(1)
+        self._goto(PAGE_CREATE)
 
     def _goto(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
         for i, btn in enumerate(self.nav_btns):
             btn.setChecked(i == index)
-        if index == 0:
+        if index == PAGE_DISCOVER:
             self.discover.reload()
-        if index == 2:
+        elif index == PAGE_SCRIPT_LAB:
+            self.script_lab.ensure_loaded()
+            self.script_lab.refresh_provider_label()
+        elif index == PAGE_CHANNEL:
             self.channel.reload()
-        if index == 3:
+        elif index == PAGE_PROJECTS:
             self.projects.reload()
-        if index == 4:
+        elif index == PAGE_GALLERY:
             self.gallery.reload()
-        if index == 5:
+        elif index == PAGE_MODELS:
             self.models.refresh_status()
+            self.models.reload_script_ai()
 
     def _from_discover(self, item: TrendItem) -> None:
         self.create.apply_trend(item)
-        self._goto(1)
+        self._goto(PAGE_CREATE)
 
     def _build_menu(self) -> None:
         bar = self.menuBar()
@@ -149,9 +173,14 @@ class MainWindow(QMainWindow):
         quit_act.triggered.connect(self.close)
         file_menu.addAction(quit_act)
 
+        settings_menu = bar.addMenu("&Settings")
+        script_ai = QAction("Script AI", self)
+        script_ai.triggered.connect(self._open_script_ai_settings)
+        settings_menu.addAction(script_ai)
+
         help_menu = bar.addMenu("&Help")
         gs = QAction("Getting Started", self)
-        gs.triggered.connect(lambda: self._goto(6))
+        gs.triggered.connect(lambda: self._goto(PAGE_HELP))
         help_menu.addAction(gs)
         wiz = QAction("Run setup wizard again", self)
         wiz.triggered.connect(self.show_setup_wizard)
@@ -162,6 +191,10 @@ class MainWindow(QMainWindow):
         about = QAction("About", self)
         about.triggered.connect(self._about)
         help_menu.addAction(about)
+
+    def _open_script_ai_settings(self) -> None:
+        self._goto(PAGE_MODELS)
+        self.models.focus_script_ai()
 
     def show_setup_wizard(self) -> None:
         wiz = SetupWizard(self.settings, self.app_dirs, self)

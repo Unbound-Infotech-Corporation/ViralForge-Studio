@@ -14,6 +14,7 @@ from trendforge.domain.enums import (
     ThemeMode,
     TransitionStyle,
     BrandVoice,
+    ScriptAiProvider,
     VideoStyle,
     VoiceEngine,
 )
@@ -66,6 +67,12 @@ class AppSettings:
     brand_voice: BrandVoice = BrandVoice.DOCUMENTARY
     series_title: str = ""
     installed_items: list[str] = field(default_factory=list)
+    # Script AI (BYOK). The key stays in settings.json with the rest of the
+    # local config and is omitted from repr so logs of the object stay clean.
+    script_ai_provider: ScriptAiProvider = ScriptAiProvider.OLLAMA
+    script_ai_api_key: str = field(default="", repr=False)
+    script_ai_base_url: str = ""
+    script_ai_model: str = ""
 
     _path: Path | None = field(default=None, repr=False, compare=False)
 
@@ -125,4 +132,11 @@ class AppSettings:
             data["last_caption"] = CaptionStyle(data["last_caption"])
         if "last_transition" in data:
             data["last_transition"] = TransitionStyle(data["last_transition"])
+        if "script_ai_provider" in data:
+            try:
+                data["script_ai_provider"] = ScriptAiProvider(data["script_ai_provider"])
+            except ValueError:
+                data["script_ai_provider"] = ScriptAiProvider.OLLAMA
+        if "script_ai_api_key" in data and data["script_ai_api_key"] is None:
+            data["script_ai_api_key"] = ""
         return cls(**data)

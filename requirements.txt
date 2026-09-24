@@ -9,6 +9,10 @@ yt-dlp>=2025.1.12
 psutil==6.1.1
 platformdirs==4.3.6
 
+# Optional: in-app Script Lab browser (Grok / ChatGPT / Claude).
+# Studio still launches without it — Script Lab shows install help and keeps paste-import + Script AI.
+# pip install PySide6-Addons
+
 # Optional extras (install only if you want them):
 # faster-whisper==1.1.1
 # edge-tts==7.0.2
