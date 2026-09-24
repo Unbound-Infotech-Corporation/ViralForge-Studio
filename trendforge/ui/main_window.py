@@ -309,8 +309,9 @@ class MainWindow(QMainWindow):
             "Shorts, long videos, and narrated docuseries.\n"
             "Primary engine: ViralForge Cinema (Wan 2.2 and CogVideoX).\n"
             "Job Console: View → Job Console, the status-bar Console button, or Ctrl+`.\n"
-            "Script Lab is under Produce. Settings → Script AI stores a bring-your-own key "
-            "(or local Ollama). A chat subscription is not an API key.\n"
+            "Script Lab is under Produce. Chat sign-in uses Open in browser (Chrome or Edge); "
+            "the embedded browser cannot complete Google login. Settings → Script AI stores a "
+            "bring-your-own key (or local Ollama). A chat subscription is not an API key.\n"
             "Mini Series sits between Create and Channel. Approve the meeting before Produce Cinema.\n"
             "No paid APIs required for core features.",
         )

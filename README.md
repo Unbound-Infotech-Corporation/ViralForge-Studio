@@ -68,7 +68,7 @@ The first launch shows a hint bar until you dismiss it.
 
 ### Script Lab and Script AI
 
-**Script Lab** is under **Produce**. It is an in-app browser for Grok, ChatGPT, Claude, and a research tab. Import a selection into the episode script Create uses. The browser needs Qt WebEngine (`pip install PySide6-Addons`). Paste-import and Script AI still work without it.
+**Script Lab** is under **Produce**. It is an in-app browser for Grok, ChatGPT, Claude, and a research tab, with **Open in browser** for account sign-in. Google, OpenAI, Anthropic, and xAI reject embedded Qt WebEngine (the "not secure" / unsupported-browser page). A desktop user-agent does not lift that block. Sign in with the system browser, Edge, or Chrome, then paste the script into the draft. The in-app profile keeps its own cookies on disk for sites that allow the embed; it does not receive the system browser's session. The embedded browser needs Qt WebEngine (`pip install PySide6-Addons`). Paste-import, Open in browser, and Script AI still work without it.
 
 **Settings → Script AI** (also **Models → Script AI**) stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription is not an API key. The default provider is local **Ollama** (**Models & Settings → Script model**); that path does not need a cloud key.
 
@@ -186,7 +186,8 @@ Add a new video model: extend `trendforge/domain/catalog.py` (`hidden=False` to 
 | Symptom | Fix |
 | --- | --- |
 | Ollama pull failed | Install Ollama, keep it running, retry Install models. The local provider needs no API key. |
-| Script Lab browser missing | `pip install PySide6-Addons`, then restart. Paste-import still works. |
+| Script Lab browser missing | `pip install PySide6-Addons`, then restart. Paste-import and Open in browser still work. |
+| Script Lab sign-in says not secure | Open in browser (Chrome or Edge). Embedded Google login cannot be fixed inside WebEngine. Paste the script back. Bad HTTPS certificates are refused. |
 | Script AI failed | Chat logins are not API keys. Set provider, key, and model under Settings → Script AI. |
 | Mini Series will not render | Approve the meeting first. Dry-run text cards stay blocked until Wan weights are installed and `cinema_dry_run` is false. |
 | Export refused | Weights missing or the soundtrack is silent. Add CogVideoX/Wan files, or pick Quick Explainer. |

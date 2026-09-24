@@ -14,7 +14,7 @@ GETTING_STARTED = """
 </ol>
 <p><b>Channel</b> stores your name, niche, CTA, and brand voice so outros and YouTube sidecars stay consistent.</p>
 <p><b>Job Console:</b> View → Job Console, the <b>Console</b> button on the status bar, or <b>Ctrl+`</b>.</p>
-<p><b>Script Lab</b> (Produce) is an in-app browser for Grok, ChatGPT, Claude, and a research tab. Import a selection into the episode script Create uses. <b>Settings → Script AI</b> stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription does not unlock the API. Local Ollama is the default provider and does not need a cloud key.</p>
+<p><b>Script Lab</b> (Produce) is an in-app browser for Grok, ChatGPT, Claude, and a research tab, plus <b>Open in browser</b> for real sign-in. Google, OpenAI, Anthropic, and xAI block account login inside the embedded browser ("not secure" / unsupported browser). That cannot be fixed by pretending to be Chrome. Use <b>Open in browser</b> (system default, Edge, or Chrome). Sign in there, then paste the script into the draft and import it. Studio does not share those cookies with the in-app profile. The in-app profile is still saved on disk for sites that allow it. <b>Settings → Script AI</b> stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription does not unlock the API. Local Ollama is the default provider and does not need a cloud key.</p>
 <p><b>Mini Series</b> sits between Create and Channel. Approve the meeting, then Produce a Cinema package. Maestro and title-card renders are refused. Paste comments, rank them, and draft the next episode. The series is stored in <code>series.json</code>.</p>
 <p><b>CogVideoX / Wan weights</b> go in the cinema models folder (default <code>F:\\TrendForge\\models\\cinema</code>): <code>cogvideox</code> next to <code>wan2.2-ti2v-5b</code> and <code>wan2.2-i2v</code>. Change the folder under Models → Connection. Missing weights are refused — Studio will not publish a title-card stand-in.</p>
 <p>Quick Explainer is the intentional motion-graphics path. Cinematic models publish real footage only.</p>
@@ -77,7 +77,8 @@ TROUBLESHOOT = """
 <li><b>No voice</b> — pick Piper after setup, or Windows SAPI (Settings → Time &amp; language → Speech).</li>
 <li><b>Where is the log?</b> — View → Job Console, status-bar <b>Console</b>, or <b>Ctrl+`</b>. Help → Copy logs copies the file log. Nothing is uploaded.</li>
 <li><b>Trends empty</b> — network/firewall. Search still works.</li>
-<li><b>Script Lab browser missing</b> — install Qt WebEngine and restart: <code>pip install PySide6-Addons</code>. Paste-import and Script AI still work without it.</li>
+<li><b>Script Lab browser missing</b> — install Qt WebEngine and restart: <code>pip install PySide6-Addons</code>. Paste-import, Script AI, and Open in browser still work without it.</li>
+<li><b>Script Lab sign-in blocked / not secure</b> — Google and the other chat sites reject Qt WebEngine. Click <b>Open in browser</b> and sign in with Chrome or Edge, then paste the script into the draft. A bad HTTPS certificate is refused and is not accepted.</li>
 <li><b>Script AI failed</b> — chat logins are not API keys. Set provider, key, and model under Settings → Script AI. Ollama must be running for the local provider.</li>
 <li><b>Stuck job</b> — Cancel, then Resume. Done shots are skipped.</li>
 </ul>
