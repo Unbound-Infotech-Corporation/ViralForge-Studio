@@ -13,6 +13,7 @@ GETTING_STARTED = """
 <li>Open <b>Gallery</b> for <code>final.mp4</code> plus titles, pinned comment, community post, and description files.</li>
 </ol>
 <p><b>Channel</b> stores your name, niche, CTA, and brand voice so outros and YouTube sidecars stay consistent.</p>
+<p><b>Script Lab</b> (Produce) is an in-app browser for Grok, ChatGPT, Claude, and a research tab. Import a selection into the episode script Create uses. <b>Settings → Script AI</b> stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription does not unlock the API.</p>
 <p>Quick Explainer produces a real explainer MP4 with voice, captions, and music using ffmpeg + Windows SAPI or Piper.
 That is the “works in minutes” path. Cinematic AI video needs Maestro running.</p>
 """
@@ -57,6 +58,8 @@ TROUBLESHOOT = """
 <li><b>ffmpeg missing</b> — <code>winget install Gyan.FFmpeg</code> or keep <code>imageio-ffmpeg</code> installed.</li>
 <li><b>No voice</b> — pick Piper after setup, or Windows SAPI (Settings → Time &amp; language → Speech).</li>
 <li><b>Trends empty</b> — network/firewall. Search still works.</li>
+<li><b>Script Lab browser missing</b> — install Qt WebEngine and restart: <code>pip install PySide6-Addons</code>. Paste-import and Script AI still work without it.</li>
+<li><b>Script AI failed</b> — chat logins are not API keys. Set provider, key, and model under Settings → Script AI. Ollama must be running for the local provider.</li>
 <li><b>Stuck job</b> — Cancel, then Resume. Done shots are skipped.</li>
 </ul>
 <p>Use <b>Copy logs</b> on the Models page when asking for help. Nothing is uploaded automatically.</p>

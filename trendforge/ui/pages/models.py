@@ -29,6 +29,7 @@ from trendforge.services.ollama_client import OllamaClient
 from trendforge.services.comfyui_client import ComfyUIClient
 from trendforge.settings import AppSettings
 from trendforge.ui.install_panel import InstallPanel
+from trendforge.ui.script_ai_settings import ScriptAiSettingsForm
 from trendforge.ui.theme import apply_theme
 
 
@@ -49,7 +50,8 @@ class ModelsPage(QWidget):
         sub.setObjectName("subtitle")
         sub.setWordWrap(True)
 
-        tabs = QTabWidget()
+        self.tabs = QTabWidget()
+        tabs = self.tabs
         self.install = InstallPanel(settings, dirs)
         self.install.finished.connect(self._on_installed)
 
@@ -115,14 +117,23 @@ class ModelsPage(QWidget):
         cat_l.addWidget(catalog, 1)
         cat_l.addWidget(logs_btn)
 
+        self.script_ai = ScriptAiSettingsForm(settings)
         tabs.addTab(self.install, "Install models")
         tabs.addTab(conn, "Connection")
+        tabs.addTab(self.script_ai, "Script AI")
         tabs.addTab(cat_w, "Catalog")
 
         root.addWidget(title)
         root.addWidget(sub)
         root.addWidget(tabs, 1)
         self.refresh_status()
+
+    def focus_script_ai(self) -> None:
+        self.tabs.setCurrentWidget(self.script_ai)
+        self.script_ai.load_from_settings()
+
+    def reload_script_ai(self) -> None:
+        self.script_ai.load_from_settings()
 
     def refresh_status(self) -> None:
         hw = detect_hardware()
