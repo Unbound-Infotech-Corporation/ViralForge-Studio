@@ -53,7 +53,10 @@ class InstallPanel(QWidget):
         self.start = QPushButton("Install selected models")
         self.start.setObjectName("primary")
         self.start.clicked.connect(self.run_install)
-        root.addWidget(QLabel("Setup will download free local models you check. Large cinematic weights go through Maestro when it is running."))
+        root.addWidget(QLabel(
+            "Setup downloads the free local models you check (Piper, Whisper, Ollama). "
+            "Place CogVideoX and Wan weights in the cinema models folder — they are not pulled from a legacy launcher."
+        ))
         root.addWidget(self.disk)
         root.addLayout(row)
         root.addWidget(scroll, 1)
@@ -72,6 +75,8 @@ class InstallPanel(QWidget):
         self.boxes.clear()
         rec = recommend_ids(hw)
         for spec in install_catalog():
+            if spec.kind == "maestro":
+                continue
             have = item_installed(spec, self.dirs, self.settings)
             label = f"{spec.name}  ·  ~{spec.size_gb:g} GB"
             if have:
@@ -105,6 +110,8 @@ class InstallPanel(QWidget):
     def select_all_that_fit(self) -> None:
         hw = detect_hardware()
         for spec in install_catalog():
+            if spec.kind == "maestro":
+                continue
             box = self.boxes.get(spec.id)
             if not box:
                 continue

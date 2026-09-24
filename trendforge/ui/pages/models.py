@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import webbrowser
-
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -21,10 +19,9 @@ from PySide6.QtWidgets import (
 
 from trendforge.bootstrap import AppDirs
 from trendforge.domain.enums import ThemeMode
-from trendforge.domain.catalog import dropdown_label, model_catalog
+from trendforge.domain.catalog import dropdown_label, visible_model_catalog
 from trendforge.logging_setup import read_log_tail
 from trendforge.services.hardware import detect_hardware
-from trendforge.services.maestro_detect import detect_maestro
 from trendforge.services.ollama_client import OllamaClient
 from trendforge.services.comfyui_client import ComfyUIClient
 from trendforge.settings import AppSettings
@@ -61,17 +58,13 @@ class ModelsPage(QWidget):
         self.status.setReadOnly(True)
         refresh = QPushButton("Re-detect stack")
         refresh.clicked.connect(self.refresh_status)
-        pin = QPushButton("Start Maestro")
-        pin.clicked.connect(self._start_maestro)
         row = QHBoxLayout()
         row.addWidget(refresh)
-        row.addWidget(pin)
         row.addStretch()
 
         form = QFormLayout()
-        self.maestro_url = QLineEdit(settings.maestro_url)
-        self.maestro_url.setPlaceholderText("Leave blank to auto-detect")
-        self.pinokio_home = QLineEdit(settings.pinokio_path)
+        self.cinema_dir = QLineEdit(settings.cinema_models_dir)
+        self.cinema_dir.setPlaceholderText(r"F:\TrendForge\models\cinema")
         self.ollama_url = QLineEdit(settings.ollama_url)
         self.ollama_model = QComboBox()
         self.ollama_model.setEditable(True)
@@ -83,8 +76,7 @@ class ModelsPage(QWidget):
         self.theme.setCurrentIndex(0 if settings.theme is ThemeMode.DARK else 1)
         self.cloud = QCheckBox("Enable optional free-cloud fallbacks (Edge TTS). Disabled by default.")
         self.cloud.setChecked(settings.paid_fallbacks_enabled)
-        form.addRow("Maestro URL", self.maestro_url)
-        form.addRow("Maestro install folder", self.pinokio_home)
+        form.addRow("Cinema models folder", self.cinema_dir)
         form.addRow("Ollama URL", self.ollama_url)
         form.addRow("Script model", self.ollama_model)
         form.addRow("ComfyUI URL", self.comfy_url)
@@ -103,7 +95,7 @@ class ModelsPage(QWidget):
         catalog = QTextEdit()
         catalog.setReadOnly(True)
         lines = []
-        for m in model_catalog():
+        for m in visible_model_catalog():
             paid = " [OPTIONAL/PAID]" if m.is_paid else ""
             lines.append(
                 f"{dropdown_label(m)}{paid}\n  Backend: {m.backend.value} · Quality {m.quality}/5\n  {m.description}\n"
@@ -113,7 +105,7 @@ class ModelsPage(QWidget):
         logs_btn.clicked.connect(self._copy_logs)
         cat_w = QWidget()
         cat_l = QVBoxLayout(cat_w)
-        cat_l.addWidget(QLabel("Create → Model dropdown (same catalog)"))
+        cat_l.addWidget(QLabel("Create → Model dropdown (legacy engines hidden)"))
         cat_l.addWidget(catalog, 1)
         cat_l.addWidget(logs_btn)
 
@@ -137,7 +129,6 @@ class ModelsPage(QWidget):
 
     def refresh_status(self) -> None:
         hw = detect_hardware()
-        inst = detect_maestro(self.settings.maestro_url, self.settings.pinokio_path)
         oll = OllamaClient(self.settings.ollama_url).status()
         comfy = ComfyUIClient(self.settings.comfyui_url).ping()
         current = self.ollama_model.currentText().strip() or self.settings.ollama_model
@@ -160,17 +151,14 @@ class ModelsPage(QWidget):
             f"VRAM: {hw.vram_free_gb} / {hw.vram_total_gb} GB",
             f"RAM: {hw.ram_available_gb} / {hw.ram_total_gb} GB",
             f"Recommended: {hw.recommended_backend.value} / {hw.recommended_model_id}",
+            f"Cinema models: {self.settings.cinema_models_dir}",
+            "  CogVideoX → cogvideox    Wan 5B → wan2.2-ti2v-5b    Wan A14B → wan2.2-i2v",
+            "Job Console: View → Job Console, status-bar Console, or Ctrl+`",
             "",
-            *inst.notes,
-            "",
-            f"Ollama: {'yes — ' + ', '.join(oll.models[:8]) if oll.running else 'no (install from ollama.com, then pull in Install models)'}",
-            f"ComfyUI: {'yes' if comfy else 'no'} at {self.settings.comfyui_url}",
+            f"Ollama script model: {'yes — ' + ', '.join(oll.models[:8]) if oll.running else 'no (install from ollama.com — no cloud API key)'}",
+            f"ComfyUI (legacy, hidden from Create): {'yes' if comfy else 'no'} at {self.settings.comfyui_url}",
         ]
         self.status.setPlainText("\n".join(lines))
-        if inst.running_url:
-            self.maestro_url.setPlaceholderText(inst.running_url)
-        if inst.pinokio_home:
-            self.pinokio_home.setPlaceholderText(str(inst.pinokio_home))
         if not (self.install._worker and self.install._worker.isRunning()):
             self.install.reload()
 
@@ -179,8 +167,7 @@ class ModelsPage(QWidget):
         self.catalogs_updated.emit()
 
     def _save(self) -> None:
-        self.settings.maestro_url = self.maestro_url.text().strip()
-        self.settings.pinokio_path = self.pinokio_home.text().strip()
+        self.settings.cinema_models_dir = self.cinema_dir.text().strip() or self.settings.cinema_models_dir
         self.settings.ollama_url = self.ollama_url.text().strip() or "http://127.0.0.1:11434"
         self.settings.ollama_model = self.ollama_model.currentText().strip()
         if self.settings.ollama_model.startswith("(auto"):
@@ -196,37 +183,6 @@ class ModelsPage(QWidget):
         QMessageBox.information(self, "Saved", "Settings saved.")
         self.refresh_status()
         self.catalogs_updated.emit()
-
-    def _start_maestro(self) -> None:
-        """Launch Maestro standalone (no Pinokio). Prefer repo start_maestro.bat."""
-        import os
-        import subprocess
-        from pathlib import Path
-
-        candidates = [
-            Path(__file__).resolve().parents[3] / "start_maestro.bat",
-            Path(r"F:\ViralForge\VisualCreatorUnbound\start_maestro.bat"),
-        ]
-        bat = next((p for p in candidates if p.exists()), None)
-        if bat is not None:
-            subprocess.Popen(["cmd", "/c", "start", "", str(bat)], shell=False)
-            return
-        # Fallback: launch.py in detected Maestro app folder
-        inst = detect_maestro(self.settings.maestro_url, self.settings.pinokio_path)
-        root = inst.maestro_root
-        if root is None and self.settings.pinokio_path:
-            root = Path(self.settings.pinokio_path) / "api" / "Maestro.git"
-        app = (Path(root) / "app") if root else None
-        if app and (app / "launch.py").exists():
-            py = app / "env-rtx50" / "Scripts" / "python.exe"
-            if not py.exists():
-                py = app / "env" / "Scripts" / "python.exe"
-            env = os.environ.copy()
-            env["SERVER_PORT"] = "42130"
-            env["SERVER_NAME"] = "127.0.0.1"
-            subprocess.Popen([str(py), "launch.py"], cwd=str(app), env=env)
-            return
-        webbrowser.open("http://127.0.0.1:42130")
 
     def _copy_logs(self) -> None:
         text = read_log_tail(self.dirs.logs / "trendforge.log")

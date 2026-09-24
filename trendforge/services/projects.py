@@ -41,13 +41,24 @@ class ProjectStore:
         return project
 
     def list_projects(self) -> list[Project]:
+        entries: list[tuple[float, Path]] = []
+        if not self.root.exists():
+            return []
+        for child in self.root.iterdir():
+            if not (child / "project.json").exists():
+                continue
+            try:
+                mtime = child.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            entries.append((mtime, child))
+        entries.sort(key=lambda pair: pair[0], reverse=True)
         items: list[Project] = []
-        for child in sorted(self.root.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
-            if (child / "project.json").exists():
-                try:
-                    items.append(self.load_from_folder(child))
-                except Exception:
-                    continue
+        for _mtime, child in entries:
+            try:
+                items.append(self.load_from_folder(child))
+            except Exception:
+                continue
         return items
 
     def delete(self, project_id: str) -> None:
@@ -60,6 +71,10 @@ class ProjectStore:
     def gallery_videos(self) -> list[Path]:
         videos: list[Path] = []
         for project in self.list_projects():
-            folder = Path(project.folder)
-            videos.extend(sorted(folder.joinpath("output").glob("*.mp4")))
+            if not project.folder:
+                continue
+            out = Path(project.folder) / "output"
+            if not out.is_dir():
+                continue
+            videos.extend(sorted(out.glob("*.mp4")))
         return videos

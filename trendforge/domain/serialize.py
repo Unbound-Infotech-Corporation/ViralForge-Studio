@@ -51,39 +51,49 @@ def dumps(obj: Any, **kwargs: Any) -> str:
     return json.dumps(to_plain(obj), indent=2, **kwargs)
 
 
+def _enum(enum_cls: type, value: Any, default: Any) -> Any:
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError, KeyError):
+        return default
+
+
+def _int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _num(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def request_from_dict(data: dict[str, Any]) -> GenerationRequest:
-    fmt = data.get("content_format", ContentFormat.SHORTS)
-    try:
-        content_format = ContentFormat(fmt)
-    except ValueError:
-        content_format = ContentFormat.SHORTS
-    length_raw = data.get("length", LengthPreset.SHORTS)
-    try:
-        length = LengthPreset(length_raw)
-    except ValueError:
-        length = LengthPreset.SHORTS
-    try:
-        brand = BrandVoice(data.get("brand_voice", BrandVoice.DOCUMENTARY))
-    except ValueError:
-        brand = BrandVoice.DOCUMENTARY
-    try:
-        media_type = MediaType(data.get("media_type", MediaType.MOVIE))
-    except ValueError:
-        media_type = MediaType.MOVIE
+    if not isinstance(data, dict):
+        data = {}
+    content_format = _enum(ContentFormat, data.get("content_format", ContentFormat.SHORTS), ContentFormat.SHORTS)
+    length = _enum(LengthPreset, data.get("length", LengthPreset.SHORTS), LengthPreset.SHORTS)
+    brand = _enum(BrandVoice, data.get("brand_voice", BrandVoice.DOCUMENTARY), BrandVoice.DOCUMENTARY)
+    media_type = _enum(MediaType, data.get("media_type", MediaType.MOVIE), MediaType.MOVIE)
+    topic = data.get("topic") or ""
     return GenerationRequest(
-        topic=data.get("topic", ""),
-        category=TrendCategory(data.get("category", TrendCategory.CUSTOM)),
-        source_url=data.get("source_url", ""),
-        style=VideoStyle(data.get("style", VideoStyle.CINEMATIC)),
+        topic=str(topic),
+        category=_enum(TrendCategory, data.get("category", TrendCategory.CUSTOM), TrendCategory.CUSTOM),
+        source_url=str(data.get("source_url") or ""),
+        style=_enum(VideoStyle, data.get("style", VideoStyle.CINEMATIC), VideoStyle.CINEMATIC),
         length=length,
         content_format=content_format,
-        aspect=AspectRatio(data.get("aspect", AspectRatio.WIDE)),
-        backend=BackendKind(data.get("backend", BackendKind.AUTO)),
-        model_id=data.get("model_id", "auto"),
-        voice=VoiceEngine(data.get("voice", VoiceEngine.WINDOWS_SAPI)),
-        piper_voice=data.get("piper_voice", "en_US-lessac-medium"),
-        captions=CaptionStyle(data.get("captions", CaptionStyle.NONE)),
-        transition=TransitionStyle(data.get("transition", TransitionStyle.CROSSFADE)),
+        aspect=_enum(AspectRatio, data.get("aspect", AspectRatio.WIDE), AspectRatio.WIDE),
+        backend=_enum(BackendKind, data.get("backend", BackendKind.AUTO), BackendKind.AUTO),
+        model_id=str(data.get("model_id") or "auto"),
+        voice=_enum(VoiceEngine, data.get("voice", VoiceEngine.WINDOWS_SAPI), VoiceEngine.WINDOWS_SAPI),
+        piper_voice=str(data.get("piper_voice") or "en_US-lessac-medium"),
+        captions=_enum(CaptionStyle, data.get("captions", CaptionStyle.NONE), CaptionStyle.NONE),
+        transition=_enum(TransitionStyle, data.get("transition", TransitionStyle.CROSSFADE), TransitionStyle.CROSSFADE),
         enable_voiceover=bool(data.get("enable_voiceover", True)),
         enable_captions=bool(data.get("enable_captions", False)),
         enable_music=bool(data.get("enable_music", True)),
@@ -91,10 +101,10 @@ def request_from_dict(data: dict[str, Any]) -> GenerationRequest:
         enable_outro=bool(data.get("enable_outro", True)),
         enable_upscale=bool(data.get("enable_upscale", False)),
         codec=data.get("codec", "h264"),
-        music_volume=float(data.get("music_volume", 0.12)),
+        music_volume=_num(data.get("music_volume", 0.12), 0.12),
         series_title=data.get("series_title", ""),
-        episode_index=int(data.get("episode_index", 1)),
-        episode_count=int(data.get("episode_count", 1)),
+        episode_index=_int(data.get("episode_index", 1), 1),
+        episode_count=_int(data.get("episode_count", 1), 1),
         brand_voice=brand,
         channel_name=data.get("channel_name", ""),
         channel_cta=data.get("channel_cta", "Subscribe for the next episode."),
@@ -103,7 +113,7 @@ def request_from_dict(data: dict[str, Any]) -> GenerationRequest:
         trailer_url=data.get("trailer_url", ""),
         allowlist_entry_id=data.get("allowlist_entry_id", ""),
         gameplay_path=data.get("gameplay_path", ""),
-        user_rating=float(data.get("user_rating", 0)),
+        user_rating=_num(data.get("user_rating", 0), 0.0),
         user_rating_scale=str(data.get("user_rating_scale", "10")),
         user_opinion=data.get("user_opinion", ""),
         user_liked=data.get("user_liked", ""),
@@ -118,11 +128,10 @@ def script_from_dict(data: dict[str, Any] | None) -> VideoScript | None:
     if not data:
         return None
     shots = []
-    for i, s in enumerate(data.get("shots", [])):
-        try:
-            segment_kind = ShotSegmentKind(s.get("segment_kind", ShotSegmentKind.COMMENTARY))
-        except ValueError:
-            segment_kind = ShotSegmentKind.COMMENTARY
+    for i, s in enumerate(data.get("shots") or []):
+        if not isinstance(s, dict):
+            continue
+        segment_kind = _enum(ShotSegmentKind, s.get("segment_kind", ShotSegmentKind.COMMENTARY), ShotSegmentKind.COMMENTARY)
         shots.append(
         Shot(
             index=int(s.get("index", i)),
@@ -133,7 +142,7 @@ def script_from_dict(data: dict[str, Any] | None) -> VideoScript | None:
             source_start_sec=float(s.get("source_start_sec", 0)),
             source_end_sec=float(s.get("source_end_sec", 0)),
             segment_kind=segment_kind,
-            status=ClipStatus(s.get("status", ClipStatus.PENDING)),
+            status=_enum(ClipStatus, s.get("status", ClipStatus.PENDING), ClipStatus.PENDING),
             clip_path=s.get("clip_path", ""),
             image_path=s.get("image_path", ""),
             audio_path=s.get("audio_path", ""),
@@ -203,14 +212,19 @@ def script_from_dict(data: dict[str, Any] | None) -> VideoScript | None:
 
 
 def project_from_dict(data: dict[str, Any]) -> Project:
+    if not isinstance(data, dict):
+        data = {}
+    request_raw = data.get("request")
+    if not isinstance(request_raw, dict):
+        request_raw = {"topic": ""}
     return Project(
-        id=data.get("id", ""),
-        title=data.get("title", "Untitled"),
-        created_at=data.get("created_at", ""),
-        updated_at=data.get("updated_at", ""),
-        request=request_from_dict(data.get("request", {"topic": ""})),
+        id=str(data.get("id") or ""),
+        title=str(data.get("title") or "Untitled"),
+        created_at=str(data.get("created_at") or ""),
+        updated_at=str(data.get("updated_at") or ""),
+        request=request_from_dict(request_raw),
         script=script_from_dict(data.get("script")),
-        stage=PipelineStage(data.get("stage", PipelineStage.IDLE)),
+        stage=_enum(PipelineStage, data.get("stage", PipelineStage.IDLE), PipelineStage.IDLE),
         output_path=data.get("output_path", ""),
         thumbnail_path=data.get("thumbnail_path", ""),
         maestro_pipeline_id=data.get("maestro_pipeline_id", ""),
