@@ -15,6 +15,7 @@ GETTING_STARTED = """
 <p><b>Channel</b> stores your name, niche, CTA, and brand voice so outros and YouTube sidecars stay consistent.</p>
 <p><b>Job Console:</b> View → Job Console, the <b>Console</b> button on the status bar, or <b>Ctrl+`</b>.</p>
 <p><b>Script Lab</b> (Produce) is an in-app browser for Grok, ChatGPT, Claude, and a research tab. Import a selection into the episode script Create uses. <b>Settings → Script AI</b> stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription does not unlock the API. Local Ollama is the default provider and does not need a cloud key.</p>
+<p><b>Mini Series</b> sits between Create and Channel. Approve the meeting, then Produce a Cinema package. Maestro and title-card renders are refused. Paste comments, rank them, and draft the next episode. The series is stored in <code>series.json</code>.</p>
 <p><b>CogVideoX / Wan weights</b> go in the cinema models folder (default <code>F:\\TrendForge\\models\\cinema</code>): <code>cogvideox</code> next to <code>wan2.2-ti2v-5b</code> and <code>wan2.2-i2v</code>. Change the folder under Models → Connection. Missing weights are refused — Studio will not publish a title-card stand-in.</p>
 <p>Quick Explainer is the intentional motion-graphics path. Cinematic models publish real footage only.</p>
 """
@@ -48,6 +49,22 @@ MODEL_GUIDE = """
 <p>Legacy engines stay out of the Create list.</p>
 """
 
+MINI_SERIES = """
+<h1>Mini Series</h1>
+<p>Mini Series is a living episode pipeline. Each episode is 5–10 minutes and the picture path is <b>ViralForge Cinema</b> (native Wan/Cog). Maestro and text-card explainers are refused.</p>
+<ol>
+<li><b>Start series</b> with a title and topic.</li>
+<li>Fill the virtual meeting: storyline, goals, tone, length, and notes.</li>
+<li>Read the guardrails (clickbait, engagement bait, harassment, dangerous advice, rights, Cinema-only pictures, human review) and check each one.</li>
+<li><b>Approve meeting</b>. Produce and Publish stay off until this gate opens. Editing the meeting after approval closes it again.</li>
+<li><b>Produce Cinema package</b> writes a footage script and a project. It does not paint title cards.</li>
+<li><b>Render with Cinema</b> runs only when <code>cinema_dry_run</code> is false. Dry-run cards are blocked.</li>
+<li><b>Mark published</b> opens a 48-hour comment window. There is no background scheduler yet.</li>
+<li>Paste comments (<code>Name: comment</code> or <code>Name | comment | likes</code>). Rank drops spam and toxicity, then <b>Draft next episode</b>. That draft is a new meeting and cannot render until you Approve it.</li>
+</ol>
+<p>YouTube OAuth is not required. If <code>youtube_api_key</code> or <code>youtube_credentials_path</code> is set in settings, the page says so, and live download stays unwired. Paste still works. Script drafts go through <code>ScriptEngineDrafter</code> (Ollama when it is running, otherwise the local template). <b>Script Lab</b> is already in the Produce nav; it can replace that drafter later through <code>ScriptDrafter</code>. The series file is <code>series.json</code>.</p>
+"""
+
 TROUBLESHOOT = """
 <h1>Troubleshooting</h1>
 <ul>
@@ -77,6 +94,7 @@ class HelpPage(QWidget):
         for name, html in (
             ("Getting Started", GETTING_STARTED),
             ("Formats", FORMAT_GUIDE),
+            ("Mini Series", MINI_SERIES),
             ("Model Guide", MODEL_GUIDE),
             ("Troubleshooting", TROUBLESHOOT),
         ):

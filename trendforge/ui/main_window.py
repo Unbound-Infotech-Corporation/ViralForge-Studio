@@ -26,6 +26,7 @@ from trendforge.ui.job_console import JobConsole
 from trendforge.ui.pages.channel import ChannelPage
 from trendforge.ui.pages.create import CreatePage
 from trendforge.ui.pages.discover import DiscoverPage
+from trendforge.ui.pages.mini_series import MiniSeriesPage
 from trendforge.ui.pages.gallery import GalleryPage
 from trendforge.ui.pages.help import HelpPage
 from trendforge.ui.pages.models import ModelsPage
@@ -35,12 +36,13 @@ from trendforge.ui.wizard import SetupWizard
 
 PAGE_DISCOVER = 0
 PAGE_CREATE = 1
-PAGE_SCRIPT_LAB = 2
-PAGE_CHANNEL = 3
-PAGE_PROJECTS = 4
-PAGE_GALLERY = 5
-PAGE_MODELS = 6
-PAGE_HELP = 7
+PAGE_MINI_SERIES = 2
+PAGE_SCRIPT_LAB = 3
+PAGE_CHANNEL = 4
+PAGE_PROJECTS = 5
+PAGE_GALLERY = 6
+PAGE_MODELS = 7
+PAGE_HELP = 8
 
 
 class MainWindow(QMainWindow):
@@ -83,6 +85,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.discover = DiscoverPage(settings.trend_region)
         self.create = CreatePage(settings, app_dirs, self.store)
+        self.mini = MiniSeriesPage(settings, app_dirs, self.store)
         self.script_lab = ScriptLabPage(settings, app_dirs, self.create)
         self.channel = ChannelPage(settings)
         self.projects = ProjectsPage(self.store)
@@ -92,6 +95,7 @@ class MainWindow(QMainWindow):
         for page in (
             self.discover,
             self.create,
+            self.mini,
             self.script_lab,
             self.channel,
             self.projects,
@@ -104,7 +108,15 @@ class MainWindow(QMainWindow):
         self.nav_btns: list[QPushButton] = []
         sections = [
             ("IDEATE", (("Discover", PAGE_DISCOVER),)),
-            ("PRODUCE", (("Script Lab", PAGE_SCRIPT_LAB), ("Create", PAGE_CREATE), ("Channel", PAGE_CHANNEL))),
+            (
+                "PRODUCE",
+                (
+                    ("Script Lab", PAGE_SCRIPT_LAB),
+                    ("Create", PAGE_CREATE),
+                    ("Mini Series", PAGE_MINI_SERIES),
+                    ("Channel", PAGE_CHANNEL),
+                ),
+            ),
             ("LIBRARY", (("Projects", PAGE_PROJECTS), ("Gallery", PAGE_GALLERY))),
             ("SYSTEM", (("Models", PAGE_MODELS), ("Help", PAGE_HELP))),
         ]
@@ -134,6 +146,8 @@ class MainWindow(QMainWindow):
         self.discover.topic_chosen.connect(self._from_discover)
         self.create.project_ready.connect(lambda _: self.projects.reload())
         self.create.project_ready.connect(lambda _: self.gallery.reload())
+        self.mini.project_ready.connect(lambda _: self.projects.reload())
+        self.mini.project_ready.connect(lambda _: self.gallery.reload())
         self.channel.saved.connect(self.create.refresh_dropdowns)
         self.models.catalogs_updated.connect(self.create.refresh_dropdowns)
         self.create.produce_started.connect(self._on_produce_started)
@@ -162,6 +176,8 @@ class MainWindow(QMainWindow):
             btn.setChecked(i == index)
         if index == PAGE_DISCOVER:
             self.discover.reload()
+        elif index == PAGE_MINI_SERIES:
+            self.mini.reload()
         elif index == PAGE_SCRIPT_LAB:
             self.script_lab.ensure_loaded()
             self.script_lab.refresh_provider_label()
@@ -295,5 +311,6 @@ class MainWindow(QMainWindow):
             "Job Console: View → Job Console, the status-bar Console button, or Ctrl+`.\n"
             "Script Lab is under Produce. Settings → Script AI stores a bring-your-own key "
             "(or local Ollama). A chat subscription is not an API key.\n"
+            "Mini Series sits between Create and Channel. Approve the meeting before Produce Cinema.\n"
             "No paid APIs required for core features.",
         )

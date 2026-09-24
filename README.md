@@ -72,6 +72,10 @@ The first launch shows a hint bar until you dismiss it.
 
 **Settings → Script AI** (also **Models → Script AI**) stores a bring-your-own API key for outlines, shot lists, dialogue, and virtual meeting notes. A chat-site subscription is not an API key. The default provider is local **Ollama** (**Models & Settings → Script model**); that path does not need a cloud key.
 
+### Mini Series
+
+**Mini Series** is under **Produce**, between **Create** and **Channel**. Approve the virtual meeting before **Produce Cinema package**. Maestro and dry-run title cards are refused. Paste comments (`Name: comment` or `Name | comment | likes`), rank them, then **Draft next episode**. The series is stored in `series.json`. Live YouTube comment download stays unwired; paste is the working path.
+
 ### CogVideoX and Wan
 
 Put checkpoints in the cinema models folder (default `F:\TrendForge\models\cinema`, editable under **Models → Connection → Cinema models folder**):
@@ -184,6 +188,7 @@ Add a new video model: extend `trendforge/domain/catalog.py` (`hidden=False` to 
 | Ollama pull failed | Install Ollama, keep it running, retry Install models. The local provider needs no API key. |
 | Script Lab browser missing | `pip install PySide6-Addons`, then restart. Paste-import still works. |
 | Script AI failed | Chat logins are not API keys. Set provider, key, and model under Settings → Script AI. |
+| Mini Series will not render | Approve the meeting first. Dry-run text cards stay blocked until Wan weights are installed and `cinema_dry_run` is false. |
 | Export refused | Weights missing or the soundtrack is silent. Add CogVideoX/Wan files, or pick Quick Explainer. |
 | Job Console | View → Job Console, status-bar Console, or Ctrl+` |
 | CUDA OOM | Use Wan 5B, CogVideoX if it fits, or Quick Explainer; close other GPU apps |
