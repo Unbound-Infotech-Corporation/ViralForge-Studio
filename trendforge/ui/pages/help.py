@@ -47,6 +47,22 @@ MODEL_GUIDE = """
 </ul>
 """
 
+MINI_SERIES = """
+<h1>Mini Series</h1>
+<p>Mini Series is a living episode pipeline. Each episode is 5–10 minutes and the picture path is <b>ViralForge Cinema</b> (native Wan/Cog). Maestro and text-card explainers are refused.</p>
+<ol>
+<li><b>Start series</b> with a title and topic.</li>
+<li>Fill the virtual meeting: storyline, goals, tone, length, and notes.</li>
+<li>Read the guardrails (clickbait, engagement bait, harassment, dangerous advice, rights, Cinema-only pictures, human review) and check each one.</li>
+<li><b>Approve meeting</b>. Produce and Publish stay off until this gate opens. Editing the meeting after approval closes it again.</li>
+<li><b>Produce Cinema package</b> writes a footage script and a project. It does not paint title cards.</li>
+<li><b>Render with Cinema</b> runs only when <code>cinema_dry_run</code> is false. Dry-run cards are blocked.</li>
+<li><b>Mark published</b> opens a 48-hour comment window. There is no background scheduler yet.</li>
+<li>Paste comments (<code>Name: comment</code> or <code>Name | comment | likes</code>). Rank drops spam and toxicity, then <b>Draft next episode</b>. That draft is a new meeting and cannot render until you Approve it.</li>
+</ol>
+<p>YouTube OAuth is not required. If <code>youtube_api_key</code> or <code>youtube_credentials_path</code> is set in settings, the page says so, and live download stays unwired. Paste still works. Script drafts go through <code>ScriptEngineDrafter</code> (Ollama when it is running, otherwise the local template). A future Script Lab module can replace that drafter.</p>
+"""
+
 TROUBLESHOOT = """
 <h1>Troubleshooting</h1>
 <ul>
@@ -73,6 +89,7 @@ class HelpPage(QWidget):
         for name, html in (
             ("Getting Started", GETTING_STARTED),
             ("Formats", FORMAT_GUIDE),
+            ("Mini Series", MINI_SERIES),
             ("Model Guide", MODEL_GUIDE),
             ("Troubleshooting", TROUBLESHOOT),
         ):
